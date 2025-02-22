@@ -1,0 +1,8 @@
+(sym_lib_table
+  (lib (name "TPS23753APWR")(type "KiCad")(uri "${KIPRJMOD}/../libraries/symbols/TPS23753APWR.kicad_sym")(options "")(descr ""))
+  (lib (name "HY931147C")(type "KiCad")(uri "${KIPRJMOD}/../libraries/symbols/HY931147C.kicad_sym")(options "")(descr ""))
+  (lib (name "FOD817AS")(type "KiCad")(uri "${KIPRJMOD}/../libraries/symbols/FOD817AS.kicad_sym")(options "")(descr ""))
+  (lib (name "HR051067")(type "KiCad")(uri "${KIPRJMOD}/../libraries/symbols/HR051067.kicad_sym")(options "")(descr ""))
+  (lib (name "TLV431ASN1")(type "KiCad")(uri "${KIPRJMOD}/../libraries/symbols/TLV431ASN1.kicad_sym")(options "")(descr ""))
+  (lib (name "B1100B-13-F")(type "KiCad")(uri "${KIPRJMOD}/../libraries/symbols/B1100B-13-F.kicad_sym")(options "")(descr ""))
+)

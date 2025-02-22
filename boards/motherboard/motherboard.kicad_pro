@@ -30,7 +30,14 @@
     "equivalence_files": []
   },
   "erc": {
-    "erc_exclusions": [],
+    "erc_exclusions": [
+      "multiple_net_names|342900|304800|bcbbd885-62fa-4c91-b5ac-586fe6472360|5b807642-b4c7-48e6-8f75-93eb9fb7ed5d",
+      "pin_to_pin|762000|774700|e7e002f5-43d9-445e-8718-e5a4786f9fb7|e4381df4-19fb-40dc-a23b-65102a94e6c0",
+      "pin_to_pin|939800|457200|dbba9a3a-bec1-401b-b1b4-4fc0091a3fba|9b0ec9e9-bf55-40d0-be7f-c6dd84681182",
+      "pin_to_pin|939800|558800|708d35c7-02ae-4d48-b383-69fe8ad4c390|9b0ec9e9-bf55-40d0-be7f-c6dd84681182",
+      "power_pin_not_driven|2095500|774700|fe6fc94e-25f8-484e-9a80-9370e01e0dca|00000000-0000-0000-0000-000000000000",
+      "power_pin_not_driven|2095500|800100|859bccee-908e-4713-bd37-4f80f9f98006|00000000-0000-0000-0000-000000000000"
+    ],
     "meta": {
       "version": 0
     },
@@ -239,7 +246,7 @@
     "pinned_symbol_libs": []
   },
   "meta": {
-    "filename": "poe_splitter.kicad_pro",
+    "filename": "motherboard.kicad_pro",
     "version": 1
   },
   "net_settings": {
@@ -318,8 +325,20 @@
   },
   "sheets": [
     [
-      "ccfddb68-52b0-4946-a753-71cfc79c2588",
+      "e3621508-6c00-4b26-a2ad-0f66e38e6b07",
       ""
+    ],
+    [
+      "24a543b8-e29a-400d-8dae-3d075fe8acc0",
+      "Power over Ethernet"
+    ],
+    [
+      "c58f3425-6469-4e3b-9df9-a56004d1a458",
+      "Ethernet PHY"
+    ],
+    [
+      "09e84f67-39ad-47de-bd50-f5f73c11b1ea",
+      "Voltage Regulators"
     ]
   ],
   "text_variables": {}

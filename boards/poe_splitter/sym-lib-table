@@ -1,3 +1,0 @@
-(sym_lib_table
-  (lib (name "TPS23753APWR")(type "KiCad")(uri "${KIPRJMOD}/../libraries/symbols/TPS23753APWR.kicad_sym")(options "")(descr ""))
-)
