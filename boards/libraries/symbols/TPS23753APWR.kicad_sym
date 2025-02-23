@@ -7,7 +7,7 @@
     (property "Value" "TPS23753APWR" (id 1) (at -12.7 -29.4 0.0)
       (effects (font (size 1.27 1.27)) (justify bottom left))
     )
-    (property "Footprint" "TPS23753APWR:SOP65P640X120-14N" (id 2) (at 0 0 0)
+    (property "Footprint" "Package_SO:TSSOP-14_4.4x5mm_P0.65mm" (id 2) (at 0 0 0)
       (effects (font (size 1.27 1.27)) (justify bottom) hide)
     )
     (property "MF" "Texas Instruments" (id 4) (at 0 0 0)
