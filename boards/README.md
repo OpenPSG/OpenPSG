@@ -1,3 +1,3 @@
 # Board Files
 
-Designed for use with KiCad v0.6.x.
+The boards are designed with/for KiCad v0.6.x.
