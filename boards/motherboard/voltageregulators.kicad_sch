@@ -1,348 +1,860 @@
-(kicad_sch (version 20211123) (generator eeschema)
-
-  (uuid 29628512-9ca2-4cce-a76c-625e3a7be731)
-
-  (paper "A4")
-
-  (title_block
-    (title "Voltage Regulators")
-    (date "2025-02-22")
-    (rev "1")
-    (company "The OpenPSG Authors")
-  )
-
-  (lib_symbols
-    (symbol "Device:C" (pin_numbers hide) (pin_names (offset 0.254)) (in_bom yes) (on_board yes)
-      (property "Reference" "C" (id 0) (at 0.635 2.54 0)
-        (effects (font (size 1.27 1.27)) (justify left))
-      )
-      (property "Value" "C" (id 1) (at 0.635 -2.54 0)
-        (effects (font (size 1.27 1.27)) (justify left))
-      )
-      (property "Footprint" "" (id 2) (at 0.9652 -3.81 0)
-        (effects (font (size 1.27 1.27)) hide)
-      )
-      (property "Datasheet" "~" (id 3) (at 0 0 0)
-        (effects (font (size 1.27 1.27)) hide)
-      )
-      (property "ki_keywords" "cap capacitor" (id 4) (at 0 0 0)
-        (effects (font (size 1.27 1.27)) hide)
-      )
-      (property "ki_description" "Unpolarized capacitor" (id 5) (at 0 0 0)
-        (effects (font (size 1.27 1.27)) hide)
-      )
-      (property "ki_fp_filters" "C_*" (id 6) (at 0 0 0)
-        (effects (font (size 1.27 1.27)) hide)
-      )
-      (symbol "C_0_1"
-        (polyline
-          (pts
-            (xy -2.032 -0.762)
-            (xy 2.032 -0.762)
-          )
-          (stroke (width 0.508) (type default) (color 0 0 0 0))
-          (fill (type none))
-        )
-        (polyline
-          (pts
-            (xy -2.032 0.762)
-            (xy 2.032 0.762)
-          )
-          (stroke (width 0.508) (type default) (color 0 0 0 0))
-          (fill (type none))
-        )
-      )
-      (symbol "C_1_1"
-        (pin passive line (at 0 3.81 270) (length 2.794)
-          (name "~" (effects (font (size 1.27 1.27))))
-          (number "1" (effects (font (size 1.27 1.27))))
-        )
-        (pin passive line (at 0 -3.81 90) (length 2.794)
-          (name "~" (effects (font (size 1.27 1.27))))
-          (number "2" (effects (font (size 1.27 1.27))))
-        )
-      )
-    )
-    (symbol "Device:C_Polarized" (pin_numbers hide) (pin_names (offset 0.254)) (in_bom yes) (on_board yes)
-      (property "Reference" "C" (id 0) (at 0.635 2.54 0)
-        (effects (font (size 1.27 1.27)) (justify left))
-      )
-      (property "Value" "C_Polarized" (id 1) (at 0.635 -2.54 0)
-        (effects (font (size 1.27 1.27)) (justify left))
-      )
-      (property "Footprint" "" (id 2) (at 0.9652 -3.81 0)
-        (effects (font (size 1.27 1.27)) hide)
-      )
-      (property "Datasheet" "~" (id 3) (at 0 0 0)
-        (effects (font (size 1.27 1.27)) hide)
-      )
-      (property "ki_keywords" "cap capacitor" (id 4) (at 0 0 0)
-        (effects (font (size 1.27 1.27)) hide)
-      )
-      (property "ki_description" "Polarized capacitor" (id 5) (at 0 0 0)
-        (effects (font (size 1.27 1.27)) hide)
-      )
-      (property "ki_fp_filters" "CP_*" (id 6) (at 0 0 0)
-        (effects (font (size 1.27 1.27)) hide)
-      )
-      (symbol "C_Polarized_0_1"
-        (rectangle (start -2.286 0.508) (end 2.286 1.016)
-          (stroke (width 0) (type default) (color 0 0 0 0))
-          (fill (type none))
-        )
-        (polyline
-          (pts
-            (xy -1.778 2.286)
-            (xy -0.762 2.286)
-          )
-          (stroke (width 0) (type default) (color 0 0 0 0))
-          (fill (type none))
-        )
-        (polyline
-          (pts
-            (xy -1.27 2.794)
-            (xy -1.27 1.778)
-          )
-          (stroke (width 0) (type default) (color 0 0 0 0))
-          (fill (type none))
-        )
-        (rectangle (start 2.286 -0.508) (end -2.286 -1.016)
-          (stroke (width 0) (type default) (color 0 0 0 0))
-          (fill (type outline))
-        )
-      )
-      (symbol "C_Polarized_1_1"
-        (pin passive line (at 0 3.81 270) (length 2.794)
-          (name "~" (effects (font (size 1.27 1.27))))
-          (number "1" (effects (font (size 1.27 1.27))))
-        )
-        (pin passive line (at 0 -3.81 90) (length 2.794)
-          (name "~" (effects (font (size 1.27 1.27))))
-          (number "2" (effects (font (size 1.27 1.27))))
-        )
-      )
-    )
-    (symbol "Regulator_Linear:AMS1117-3.3" (pin_names (offset 0.254)) (in_bom yes) (on_board yes)
-      (property "Reference" "U" (id 0) (at -3.81 3.175 0)
-        (effects (font (size 1.27 1.27)))
-      )
-      (property "Value" "AMS1117-3.3" (id 1) (at 0 3.175 0)
-        (effects (font (size 1.27 1.27)) (justify left))
-      )
-      (property "Footprint" "Package_TO_SOT_SMD:SOT-223-3_TabPin2" (id 2) (at 0 5.08 0)
-        (effects (font (size 1.27 1.27)) hide)
-      )
-      (property "Datasheet" "http://www.advanced-monolithic.com/pdf/ds1117.pdf" (id 3) (at 2.54 -6.35 0)
-        (effects (font (size 1.27 1.27)) hide)
-      )
-      (property "ki_keywords" "linear regulator ldo fixed positive" (id 4) (at 0 0 0)
-        (effects (font (size 1.27 1.27)) hide)
-      )
-      (property "ki_description" "1A Low Dropout regulator, positive, 3.3V fixed output, SOT-223" (id 5) (at 0 0 0)
-        (effects (font (size 1.27 1.27)) hide)
-      )
-      (property "ki_fp_filters" "SOT?223*TabPin2*" (id 6) (at 0 0 0)
-        (effects (font (size 1.27 1.27)) hide)
-      )
-      (symbol "AMS1117-3.3_0_1"
-        (rectangle (start -5.08 -5.08) (end 5.08 1.905)
-          (stroke (width 0.254) (type default) (color 0 0 0 0))
-          (fill (type background))
-        )
-      )
-      (symbol "AMS1117-3.3_1_1"
-        (pin power_in line (at 0 -7.62 90) (length 2.54)
-          (name "GND" (effects (font (size 1.27 1.27))))
-          (number "1" (effects (font (size 1.27 1.27))))
-        )
-        (pin power_out line (at 7.62 0 180) (length 2.54)
-          (name "VO" (effects (font (size 1.27 1.27))))
-          (number "2" (effects (font (size 1.27 1.27))))
-        )
-        (pin power_in line (at -7.62 0 0) (length 2.54)
-          (name "VI" (effects (font (size 1.27 1.27))))
-          (number "3" (effects (font (size 1.27 1.27))))
-        )
-      )
-    )
-  )
-
-  (junction (at 50.8 33.02) (diameter 0) (color 0 0 0 0)
-    (uuid 1f14a0bf-9f82-42bd-8c38-de8c459b1a71)
-  )
-  (junction (at 30.48 43.18) (diameter 0) (color 0 0 0 0)
-    (uuid 4a08ce27-d479-4722-86f9-b5fa797502ce)
-  )
-  (junction (at 41.91 43.18) (diameter 0) (color 0 0 0 0)
-    (uuid 8ca8fa89-5f09-48cd-8479-0ca84bc5c44c)
-  )
-  (junction (at 50.8 43.18) (diameter 0) (color 0 0 0 0)
-    (uuid 9af551f3-35d7-475b-a63c-9de0c572f847)
-  )
-  (junction (at 30.48 33.02) (diameter 0) (color 0 0 0 0)
-    (uuid c46e584e-2897-4ced-aaa1-4b043e5888c8)
-  )
-  (junction (at 60.96 33.02) (diameter 0) (color 0 0 0 0)
-    (uuid f855ee10-6024-4099-94fc-2beb752e9e1a)
-  )
-
-  (wire (pts (xy 49.53 33.02) (xy 50.8 33.02))
-    (stroke (width 0) (type default) (color 0 0 0 0))
-    (uuid 154992b4-b388-4831-add8-713a6e297426)
-  )
-  (wire (pts (xy 41.91 43.18) (xy 50.8 43.18))
-    (stroke (width 0) (type default) (color 0 0 0 0))
-    (uuid 1c074657-1db7-4d96-9294-c9d4ee11eebd)
-  )
-  (wire (pts (xy 30.48 43.18) (xy 30.48 44.45))
-    (stroke (width 0) (type default) (color 0 0 0 0))
-    (uuid 263425d4-982d-4fc3-9893-1f0bec2d900b)
-  )
-  (wire (pts (xy 60.96 34.29) (xy 60.96 33.02))
-    (stroke (width 0) (type default) (color 0 0 0 0))
-    (uuid 2683381e-ee49-4416-8edf-9cc401485f51)
-  )
-  (wire (pts (xy 50.8 33.02) (xy 50.8 34.29))
-    (stroke (width 0) (type default) (color 0 0 0 0))
-    (uuid 2c0c2a52-9395-4931-83cd-cec998b32b37)
-  )
-  (wire (pts (xy 30.48 34.29) (xy 30.48 33.02))
-    (stroke (width 0) (type default) (color 0 0 0 0))
-    (uuid 4945378c-37c4-4022-8cc7-f07b70c02d75)
-  )
-  (wire (pts (xy 41.91 40.64) (xy 41.91 43.18))
-    (stroke (width 0) (type default) (color 0 0 0 0))
-    (uuid 509af811-3fdc-4b9f-941d-728eed4e695a)
-  )
-  (wire (pts (xy 50.8 43.18) (xy 60.96 43.18))
-    (stroke (width 0) (type default) (color 0 0 0 0))
-    (uuid 554128f2-b4fc-4e40-82cb-323bbc9c4eab)
-  )
-  (wire (pts (xy 50.8 33.02) (xy 60.96 33.02))
-    (stroke (width 0) (type default) (color 0 0 0 0))
-    (uuid 5882678f-2d9a-4026-bcd5-acd8c30ed687)
-  )
-  (wire (pts (xy 60.96 41.91) (xy 60.96 43.18))
-    (stroke (width 0) (type default) (color 0 0 0 0))
-    (uuid 6d00c5db-c81b-47d6-a955-156d61d2ed52)
-  )
-  (wire (pts (xy 30.48 43.18) (xy 41.91 43.18))
-    (stroke (width 0) (type default) (color 0 0 0 0))
-    (uuid 85a28d56-0a9b-4225-bf38-bdd5fc6375c2)
-  )
-  (wire (pts (xy 30.48 31.75) (xy 30.48 33.02))
-    (stroke (width 0) (type default) (color 0 0 0 0))
-    (uuid 906015bc-a8ad-450f-ab0a-916e3ceba4a8)
-  )
-  (wire (pts (xy 60.96 31.75) (xy 60.96 33.02))
-    (stroke (width 0) (type default) (color 0 0 0 0))
-    (uuid a4d51978-d552-4396-90fe-292b101a355b)
-  )
-  (wire (pts (xy 50.8 41.91) (xy 50.8 43.18))
-    (stroke (width 0) (type default) (color 0 0 0 0))
-    (uuid bc28d6b7-da37-4747-ae6d-3fecd929bcb2)
-  )
-  (wire (pts (xy 30.48 41.91) (xy 30.48 43.18))
-    (stroke (width 0) (type default) (color 0 0 0 0))
-    (uuid cbfb2765-fc4d-40d7-afe2-915beb2f0e7e)
-  )
-  (wire (pts (xy 30.48 33.02) (xy 34.29 33.02))
-    (stroke (width 0) (type default) (color 0 0 0 0))
-    (uuid d048de8e-fb22-4f44-aac4-0e646ac645ee)
-  )
-
-  (hierarchical_label "+3.3V" (shape output) (at 60.96 31.75 90)
-    (effects (font (size 1.27 1.27)) (justify left))
-    (uuid 1f22b640-0258-4a7b-a2ab-5876387da45f)
-  )
-  (hierarchical_label "+5V" (shape input) (at 30.48 31.75 90)
-    (effects (font (size 1.27 1.27)) (justify left))
-    (uuid f93aacd2-df9f-4cc5-8de9-fac5f063e0e5)
-  )
-  (hierarchical_label "GND" (shape bidirectional) (at 30.48 44.45 270)
-    (effects (font (size 1.27 1.27)) (justify right))
-    (uuid fda424ab-552d-4d5e-8b62-f4322e66dd43)
-  )
-
-  (symbol (lib_id "Regulator_Linear:AMS1117-3.3") (at 41.91 33.02 0) (unit 1)
-    (in_bom yes) (on_board yes) (fields_autoplaced)
-    (uuid 004d95e8-24b2-4fd7-bc23-fd2605d6989e)
-    (property "Reference" "U6" (id 0) (at 41.91 25.4 0))
-    (property "Value" "AMS1117-3.3" (id 1) (at 41.91 27.94 0))
-    (property "Footprint" "Package_TO_SOT_SMD:SOT-223-3_TabPin2" (id 2) (at 41.91 27.94 0)
-      (effects (font (size 1.27 1.27)) hide)
-    )
-    (property "Datasheet" "http://www.advanced-monolithic.com/pdf/ds1117.pdf" (id 3) (at 44.45 39.37 0)
-      (effects (font (size 1.27 1.27)) hide)
-    )
-    (pin "1" (uuid 2032a9c0-ec86-49a9-bd95-a607d6bd59ce))
-    (pin "2" (uuid 9b0ec9e9-bf55-40d0-be7f-c6dd84681182))
-    (pin "3" (uuid ef259674-27a0-435b-a602-2f8d76d66a52))
-  )
-
-  (symbol (lib_id "Device:C_Polarized") (at 60.96 38.1 0) (unit 1)
-    (in_bom yes) (on_board yes)
-    (uuid 40d25047-57b2-4ac5-b4e9-0dff80dc4236)
-    (property "Reference" "C50" (id 0) (at 63.5 36.83 0)
-      (effects (font (size 1.27 1.27)) (justify left))
-    )
-    (property "Value" "47u" (id 1) (at 63.5 39.37 0)
-      (effects (font (size 1.27 1.27)) (justify left))
-    )
-    (property "Footprint" "Capacitor_SMD:CP_Elec_4x5.4" (id 2) (at 61.9252 41.91 0)
-      (effects (font (size 1.27 1.27)) hide)
-    )
-    (property "Datasheet" "~" (id 3) (at 60.96 38.1 0)
-      (effects (font (size 1.27 1.27)) hide)
-    )
-    (property "Voltage Rating" "6.3V" (id 4) (at 63.5 41.91 0)
-      (effects (font (size 1.27 1.27)) (justify left))
-    )
-    (pin "1" (uuid 83520817-0d02-446d-a63d-172f947215b6))
-    (pin "2" (uuid 2b70959b-c5a6-4519-9994-ebe139f00136))
-  )
-
-  (symbol (lib_id "Device:C") (at 30.48 38.1 0) (unit 1)
-    (in_bom yes) (on_board yes)
-    (uuid bd233795-9a6d-4ea7-8643-0623242076d3)
-    (property "Reference" "C48" (id 0) (at 33.02 36.83 0)
-      (effects (font (size 1.27 1.27)) (justify left))
-    )
-    (property "Value" "100n" (id 1) (at 33.02 39.37 0)
-      (effects (font (size 1.27 1.27)) (justify left))
-    )
-    (property "Footprint" "Capacitor_SMD:C_0603_1608Metric" (id 2) (at 31.4452 41.91 0)
-      (effects (font (size 1.27 1.27)) hide)
-    )
-    (property "Datasheet" "~" (id 3) (at 30.48 38.1 0)
-      (effects (font (size 1.27 1.27)) hide)
-    )
-    (property "Voltage Rating" "10V" (id 4) (at 33.02 41.91 0)
-      (effects (font (size 1.27 1.27)) (justify left))
-    )
-    (pin "1" (uuid 2941541b-80e6-43e2-aa18-53608dbd1f24))
-    (pin "2" (uuid 2cdbcc05-7b60-41d0-bc1d-f36b772a1b32))
-  )
-
-  (symbol (lib_id "Device:C") (at 50.8 38.1 0) (unit 1)
-    (in_bom yes) (on_board yes)
-    (uuid d4c0b2aa-c08d-4852-b4aa-2abac91bc8a9)
-    (property "Reference" "C49" (id 0) (at 53.34 36.83 0)
-      (effects (font (size 1.27 1.27)) (justify left))
-    )
-    (property "Value" "100n" (id 1) (at 53.34 39.37 0)
-      (effects (font (size 1.27 1.27)) (justify left))
-    )
-    (property "Footprint" "Capacitor_SMD:C_0603_1608Metric" (id 2) (at 51.7652 41.91 0)
-      (effects (font (size 1.27 1.27)) hide)
-    )
-    (property "Datasheet" "~" (id 3) (at 50.8 38.1 0)
-      (effects (font (size 1.27 1.27)) hide)
-    )
-    (property "Voltage Rating" "10V" (id 4) (at 53.34 41.91 0)
-      (effects (font (size 1.27 1.27)) (justify left))
-    )
-    (pin "1" (uuid 25372ce8-13a6-4abc-a555-d0f9103cec74))
-    (pin "2" (uuid 007f5ea6-e3c5-405e-8d03-147ae4686e39))
-  )
+(kicad_sch
+	(version 20231120)
+	(generator "eeschema")
+	(generator_version "8.0")
+	(uuid "29628512-9ca2-4cce-a76c-625e3a7be731")
+	(paper "A4")
+	(title_block
+		(title "Voltage Regulators")
+		(date "2025-02-22")
+		(rev "1")
+		(company "The OpenPSG Authors")
+	)
+	(lib_symbols
+		(symbol "Device:C"
+			(pin_numbers hide)
+			(pin_names
+				(offset 0.254)
+			)
+			(exclude_from_sim no)
+			(in_bom yes)
+			(on_board yes)
+			(property "Reference" "C"
+				(at 0.635 2.54 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify left)
+				)
+			)
+			(property "Value" "C"
+				(at 0.635 -2.54 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify left)
+				)
+			)
+			(property "Footprint" ""
+				(at 0.9652 -3.81 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(hide yes)
+				)
+			)
+			(property "Datasheet" "~"
+				(at 0 0 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(hide yes)
+				)
+			)
+			(property "Description" "Unpolarized capacitor"
+				(at 0 0 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(hide yes)
+				)
+			)
+			(property "ki_keywords" "cap capacitor"
+				(at 0 0 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(hide yes)
+				)
+			)
+			(property "ki_fp_filters" "C_*"
+				(at 0 0 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(hide yes)
+				)
+			)
+			(symbol "C_0_1"
+				(polyline
+					(pts
+						(xy -2.032 -0.762) (xy 2.032 -0.762)
+					)
+					(stroke
+						(width 0.508)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy -2.032 0.762) (xy 2.032 0.762)
+					)
+					(stroke
+						(width 0.508)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+			)
+			(symbol "C_1_1"
+				(pin passive line
+					(at 0 3.81 270)
+					(length 2.794)
+					(name "~"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "1"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at 0 -3.81 90)
+					(length 2.794)
+					(name "~"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "2"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+			)
+		)
+		(symbol "Regulator_Linear:AMS1117-3.3"
+			(exclude_from_sim no)
+			(in_bom yes)
+			(on_board yes)
+			(property "Reference" "U"
+				(at -3.81 3.175 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Value" "AMS1117-3.3"
+				(at 0 3.175 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify left)
+				)
+			)
+			(property "Footprint" "Package_TO_SOT_SMD:SOT-223-3_TabPin2"
+				(at 0 5.08 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(hide yes)
+				)
+			)
+			(property "Datasheet" "http://www.advanced-monolithic.com/pdf/ds1117.pdf"
+				(at 2.54 -6.35 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(hide yes)
+				)
+			)
+			(property "Description" "1A Low Dropout regulator, positive, 3.3V fixed output, SOT-223"
+				(at 0 0 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(hide yes)
+				)
+			)
+			(property "ki_keywords" "linear regulator ldo fixed positive"
+				(at 0 0 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(hide yes)
+				)
+			)
+			(property "ki_fp_filters" "SOT?223*TabPin2*"
+				(at 0 0 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(hide yes)
+				)
+			)
+			(symbol "AMS1117-3.3_0_1"
+				(rectangle
+					(start -5.08 -5.08)
+					(end 5.08 1.905)
+					(stroke
+						(width 0.254)
+						(type default)
+					)
+					(fill
+						(type background)
+					)
+				)
+			)
+			(symbol "AMS1117-3.3_1_1"
+				(pin power_in line
+					(at 0 -7.62 90)
+					(length 2.54)
+					(name "GND"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "1"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin power_out line
+					(at 7.62 0 180)
+					(length 2.54)
+					(name "VO"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "2"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin power_in line
+					(at -7.62 0 0)
+					(length 2.54)
+					(name "VI"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "3"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+			)
+		)
+	)
+	(junction
+		(at 50.8 33.02)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "1f14a0bf-9f82-42bd-8c38-de8c459b1a71")
+	)
+	(junction
+		(at 30.48 43.18)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "4a08ce27-d479-4722-86f9-b5fa797502ce")
+	)
+	(junction
+		(at 41.91 43.18)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "8ca8fa89-5f09-48cd-8479-0ca84bc5c44c")
+	)
+	(junction
+		(at 50.8 43.18)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "9af551f3-35d7-475b-a63c-9de0c572f847")
+	)
+	(junction
+		(at 30.48 33.02)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "c46e584e-2897-4ced-aaa1-4b043e5888c8")
+	)
+	(junction
+		(at 60.96 33.02)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "f855ee10-6024-4099-94fc-2beb752e9e1a")
+	)
+	(wire
+		(pts
+			(xy 49.53 33.02) (xy 50.8 33.02)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "154992b4-b388-4831-add8-713a6e297426")
+	)
+	(wire
+		(pts
+			(xy 41.91 43.18) (xy 50.8 43.18)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "1c074657-1db7-4d96-9294-c9d4ee11eebd")
+	)
+	(wire
+		(pts
+			(xy 30.48 43.18) (xy 30.48 44.45)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "263425d4-982d-4fc3-9893-1f0bec2d900b")
+	)
+	(wire
+		(pts
+			(xy 60.96 34.29) (xy 60.96 33.02)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "2683381e-ee49-4416-8edf-9cc401485f51")
+	)
+	(wire
+		(pts
+			(xy 50.8 33.02) (xy 50.8 34.29)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "2c0c2a52-9395-4931-83cd-cec998b32b37")
+	)
+	(wire
+		(pts
+			(xy 30.48 34.29) (xy 30.48 33.02)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "4945378c-37c4-4022-8cc7-f07b70c02d75")
+	)
+	(wire
+		(pts
+			(xy 41.91 40.64) (xy 41.91 43.18)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "509af811-3fdc-4b9f-941d-728eed4e695a")
+	)
+	(wire
+		(pts
+			(xy 50.8 43.18) (xy 60.96 43.18)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "554128f2-b4fc-4e40-82cb-323bbc9c4eab")
+	)
+	(wire
+		(pts
+			(xy 50.8 33.02) (xy 60.96 33.02)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "5882678f-2d9a-4026-bcd5-acd8c30ed687")
+	)
+	(wire
+		(pts
+			(xy 60.96 41.91) (xy 60.96 43.18)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "6d00c5db-c81b-47d6-a955-156d61d2ed52")
+	)
+	(wire
+		(pts
+			(xy 30.48 43.18) (xy 41.91 43.18)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "85a28d56-0a9b-4225-bf38-bdd5fc6375c2")
+	)
+	(wire
+		(pts
+			(xy 30.48 31.75) (xy 30.48 33.02)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "906015bc-a8ad-450f-ab0a-916e3ceba4a8")
+	)
+	(wire
+		(pts
+			(xy 60.96 31.75) (xy 60.96 33.02)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "a4d51978-d552-4396-90fe-292b101a355b")
+	)
+	(wire
+		(pts
+			(xy 50.8 41.91) (xy 50.8 43.18)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "bc28d6b7-da37-4747-ae6d-3fecd929bcb2")
+	)
+	(wire
+		(pts
+			(xy 30.48 41.91) (xy 30.48 43.18)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "cbfb2765-fc4d-40d7-afe2-915beb2f0e7e")
+	)
+	(wire
+		(pts
+			(xy 30.48 33.02) (xy 34.29 33.02)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "d048de8e-fb22-4f44-aac4-0e646ac645ee")
+	)
+	(hierarchical_label "+3.3V"
+		(shape output)
+		(at 60.96 31.75 90)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "1f22b640-0258-4a7b-a2ab-5876387da45f")
+	)
+	(hierarchical_label "+5V"
+		(shape input)
+		(at 30.48 31.75 90)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "f93aacd2-df9f-4cc5-8de9-fac5f063e0e5")
+	)
+	(hierarchical_label "GND"
+		(shape bidirectional)
+		(at 30.48 44.45 270)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "fda424ab-552d-4d5e-8b62-f4322e66dd43")
+	)
+	(symbol
+		(lib_id "Regulator_Linear:AMS1117-3.3")
+		(at 41.91 33.02 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "004d95e8-24b2-4fd7-bc23-fd2605d6989e")
+		(property "Reference" "U6"
+			(at 41.91 25.4 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "AMS1117-3.3"
+			(at 41.91 27.94 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" "Package_TO_SOT_SMD:SOT-223-3_TabPin2"
+			(at 41.91 27.94 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "http://www.advanced-monolithic.com/pdf/ds1117.pdf"
+			(at 44.45 39.37 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" "1A Low Dropout regulator, positive, 3.3V fixed output, SOT-223"
+			(at 41.91 33.02 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC PN" "C6186"
+			(at 41.91 33.02 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "2032a9c0-ec86-49a9-bd95-a607d6bd59ce")
+		)
+		(pin "2"
+			(uuid "9b0ec9e9-bf55-40d0-be7f-c6dd84681182")
+		)
+		(pin "3"
+			(uuid "ef259674-27a0-435b-a602-2f8d76d66a52")
+		)
+		(instances
+			(project "motherboard"
+				(path "/e3621508-6c00-4b26-a2ad-0f66e38e6b07/09e84f67-39ad-47de-bd50-f5f73c11b1ea"
+					(reference "U6")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Device:C")
+		(at 60.96 38.1 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "4142f0cc-bfa2-466e-ac1a-233d7253a1f5")
+		(property "Reference" "C46"
+			(at 63.5 36.83 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "47u"
+			(at 63.5 39.37 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "Capacitor_SMD:C_0603_1608Metric"
+			(at 61.9252 41.91 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 60.96 38.1 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" "Unpolarized capacitor"
+			(at 60.96 38.1 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Voltage Rating" "10V"
+			(at 63.5 41.91 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "LCSC PN" "C96123"
+			(at 60.96 38.1 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "47e5be37-59ab-4abd-8410-a21e12678331")
+		)
+		(pin "2"
+			(uuid "86c69fca-2c33-4444-a782-9a54a0a2004b")
+		)
+		(instances
+			(project "motherboard"
+				(path "/e3621508-6c00-4b26-a2ad-0f66e38e6b07/09e84f67-39ad-47de-bd50-f5f73c11b1ea"
+					(reference "C46")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Device:C")
+		(at 30.48 38.1 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "bd233795-9a6d-4ea7-8643-0623242076d3")
+		(property "Reference" "C48"
+			(at 33.02 36.83 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "100n"
+			(at 33.02 39.37 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "Capacitor_SMD:C_0603_1608Metric"
+			(at 31.4452 41.91 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 30.48 38.1 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" "Unpolarized capacitor"
+			(at 30.48 38.1 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Voltage Rating" "10V"
+			(at 33.02 41.91 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "LCSC PN" "C14663"
+			(at 30.48 38.1 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "2941541b-80e6-43e2-aa18-53608dbd1f24")
+		)
+		(pin "2"
+			(uuid "2cdbcc05-7b60-41d0-bc1d-f36b772a1b32")
+		)
+		(instances
+			(project "motherboard"
+				(path "/e3621508-6c00-4b26-a2ad-0f66e38e6b07/09e84f67-39ad-47de-bd50-f5f73c11b1ea"
+					(reference "C48")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Device:C")
+		(at 50.8 38.1 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "d4c0b2aa-c08d-4852-b4aa-2abac91bc8a9")
+		(property "Reference" "C49"
+			(at 53.34 36.83 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "100n"
+			(at 53.34 39.37 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "Capacitor_SMD:C_0603_1608Metric"
+			(at 51.7652 41.91 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 50.8 38.1 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" "Unpolarized capacitor"
+			(at 50.8 38.1 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Voltage Rating" "10V"
+			(at 53.34 41.91 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "LCSC PN" "C14663"
+			(at 50.8 38.1 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "25372ce8-13a6-4abc-a555-d0f9103cec74")
+		)
+		(pin "2"
+			(uuid "007f5ea6-e3c5-405e-8d03-147ae4686e39")
+		)
+		(instances
+			(project "motherboard"
+				(path "/e3621508-6c00-4b26-a2ad-0f66e38e6b07/09e84f67-39ad-47de-bd50-f5f73c11b1ea"
+					(reference "C49")
+					(unit 1)
+				)
+			)
+		)
+	)
 )
