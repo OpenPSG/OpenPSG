@@ -6195,7 +6195,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Capacitor_SMD:C_0603_1608Metric"
+		(property "Footprint" "Capacitor_SMD:C_1206_3216Metric"
 			(at 233.3752 81.28 0)
 			(effects
 				(font
@@ -6493,7 +6493,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Capacitor_SMD:C_0603_1608Metric"
+		(property "Footprint" "Capacitor_SMD:C_0805_2012Metric"
 			(at 162.2552 39.37 0)
 			(effects
 				(font
@@ -6529,7 +6529,7 @@
 				(justify left)
 			)
 		)
-		(property "LCSC PN" "C15725"
+		(property "LCSC PN" "C28233"
 			(at 161.29 35.56 0)
 			(effects
 				(font
@@ -8147,7 +8147,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Capacitor_SMD:C_0603_1608Metric"
+		(property "Footprint" "Capacitor_SMD:C_1206_3216Metric"
 			(at 242.2652 81.28 0)
 			(effects
 				(font
@@ -9313,7 +9313,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Capacitor_SMD:C_0603_1608Metric"
+		(property "Footprint" "Capacitor_SMD:C_0805_2012Metric"
 			(at 152.0952 39.37 0)
 			(effects
 				(font
@@ -9349,7 +9349,7 @@
 				(justify left)
 			)
 		)
-		(property "LCSC PN" "C15725"
+		(property "LCSC PN" "C28233"
 			(at 151.13 35.56 0)
 			(effects
 				(font
@@ -9400,7 +9400,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Capacitor_SMD:C_0603_1608Metric"
+		(property "Footprint" "Capacitor_SMD:C_0805_2012Metric"
 			(at 125.73 33.3248 0)
 			(effects
 				(font
@@ -9436,7 +9436,7 @@
 				(justify left)
 			)
 		)
-		(property "LCSC PN" "C15725"
+		(property "LCSC PN" "C28233"
 			(at 121.92 34.29 90)
 			(effects
 				(font

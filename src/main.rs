@@ -20,7 +20,7 @@
 #![cfg_attr(not(test), no_main)]
 
 use crate::api::RpcHandler;
-use crate::cs1237::{Channel, Config as Cs1237Config, Cs1237, Gain, SamplesPerSecond};
+//use crate::cs1237::{Channel, Config as Cs1237Config, Cs1237, Gain, SamplesPerSecond};
 use crate::net_util::generate_mac_address;
 use crate::task::TaskSignal;
 use crate::time::{clock_gettime, clock_settime, init_time, Timespec};
@@ -125,15 +125,15 @@ async fn main(spawner: Spawner) -> ! {
     {
         use embassy_stm32::rcc::*;
         config.rcc.hse = Some(Hse {
-            freq: Hertz(25_000_000),
+            freq: Hertz(8_000_000),
             mode: HseMode::Oscillator,
         });
         config.rcc.pll_src = PllSource::HSE;
         config.rcc.pll = Some(Pll {
-            prediv: PllPreDiv::DIV25,
+            prediv: PllPreDiv::DIV8,
             mul: PllMul::MUL336,
-            divp: Some(PllPDiv::DIV2), // 25mhz / 25 * 336 / 2 = 168Mhz.
-            divq: Some(PllQDiv::DIV7), // 25mhz / 25 * 336 / 7 = 48Mhz.
+            divp: Some(PllPDiv::DIV2), // 8mhz / 8 * 336 / 2 = 168Mhz.
+            divq: Some(PllQDiv::DIV7), // 8mhz / 8 * 336 / 7 = 48Mhz.
             divr: None,
         });
         config.rcc.ahb_pre = AHBPrescaler::DIV1;
@@ -148,7 +148,7 @@ async fn main(spawner: Spawner) -> ! {
     let p = embassy_stm32::init(config);
 
     // Initialize peripherals
-    let ncpt_adc = Cs1237::try_new(
+   /*  let ncpt_adc = Cs1237::try_new(
         p.SPI1,
         p.PA5,
         p.PA6,
@@ -163,7 +163,7 @@ async fn main(spawner: Spawner) -> ! {
     )
     .await
     .unwrap();
-
+*/
     // Initialize the RTC.
     debug!("Initializing RTC...");
     init_time(p.RTC);
@@ -236,14 +236,14 @@ async fn main(spawner: Spawner) -> ! {
         .unwrap();
 
     // Launch pressure transducer sampling task.
-    spawner
+  /*  spawner
         .spawn(ncpt::sample(
             rpc_server,
             ncpt_sampling_task_signals,
             ncpt_adc,
         ))
         .unwrap();
-
+ */
     let mut rx_buffer = [0; 128]; // Received commands are nice and small.
     let mut tx_buffer = [0; 1460]; // One Ethernet frame worth of data.
 

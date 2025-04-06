@@ -6,8 +6,8 @@
 	(paper "A3")
 	(title_block
 		(title "OpenPSG Motherboard")
-		(date "2025-02-08")
-		(rev "1")
+		(date "2025-03-12")
+		(rev "2")
 		(company "The OpenPSG Authors")
 	)
 	(lib_symbols
@@ -14465,7 +14465,7 @@
 				(hide yes)
 			)
 		)
-		(property "LCSC PN" "C2894926"
+		(property "LCSC PN" "C2937625"
 			(at 173.99 220.98 0)
 			(effects
 				(font
@@ -15669,7 +15669,7 @@
 				(justify right)
 			)
 		)
-		(property "Footprint" "Button_Switch_SMD:SW_Tactile_SPST_NO_Straight_CK_PTS636Sx25SMTRLFS"
+		(property "Footprint" "Button_Switch_SMD:SW_SPST_SKQG_WithStem"
 			(at 168.91 193.04 0)
 			(effects
 				(font
@@ -15696,7 +15696,7 @@
 				(hide yes)
 			)
 		)
-		(property "LCSC PN" "C318938"
+		(property "LCSC PN" "C318884"
 			(at 173.99 193.04 90)
 			(effects
 				(font
@@ -17486,7 +17486,7 @@
 				(hide yes)
 			)
 		)
-		(property "LCSC PN" "C114862"
+		(property "LCSC PN" "C86088"
 			(at 273.05 54.61 90)
 			(effects
 				(font

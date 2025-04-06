@@ -1431,6 +1431,12 @@
 		(uuid "d310c5f4-204a-4642-be00-b574625cb415")
 	)
 	(junction
+		(at 142.24 40.64)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "d809037e-5438-4eae-b450-8e9776ef7394")
+	)
+	(junction
 		(at 134.62 149.86)
 		(diameter 0)
 		(color 0 0 0 0)
@@ -1447,6 +1453,12 @@
 		(diameter 0)
 		(color 0 0 0 0)
 		(uuid "e0fa416e-9be7-49bb-9125-127463fe2d01")
+	)
+	(junction
+		(at 132.08 50.8)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "e4e40aba-a84a-4acc-b3eb-49b60a0686c7")
 	)
 	(junction
 		(at 144.78 128.27)
@@ -1603,6 +1615,16 @@
 			(type default)
 		)
 		(uuid "0f9b5e85-efbe-495a-a0cf-929ce9f6769f")
+	)
+	(wire
+		(pts
+			(xy 142.24 49.53) (xy 142.24 50.8)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "10b904fd-b1c9-467d-9d7c-c060e6a1161d")
 	)
 	(wire
 		(pts
@@ -1833,6 +1855,16 @@
 			(type default)
 		)
 		(uuid "3f8159bb-8c78-4c59-9fc6-3ac7e99ac897")
+	)
+	(wire
+		(pts
+			(xy 142.24 40.64) (xy 142.24 41.91)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "460f1ce9-7fa4-4f8e-86af-8333805fdbff")
 	)
 	(wire
 		(pts
@@ -2413,6 +2445,16 @@
 			(type default)
 		)
 		(uuid "df7d4e5b-4648-4398-a307-74a397eca328")
+	)
+	(wire
+		(pts
+			(xy 142.24 50.8) (xy 132.08 50.8)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "e1e0ecd4-e533-456e-b0a6-8010e4f28e7d")
 	)
 	(wire
 		(pts
@@ -3021,6 +3063,92 @@
 			(project "motherboard"
 				(path "/e3621508-6c00-4b26-a2ad-0f66e38e6b07/c58f3425-6469-4e3b-9df9-a56004d1a458"
 					(reference "R37")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Device:C")
+		(at 142.24 45.72 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "172b78ba-6374-4f3f-9052-1309e0c05b85")
+		(property "Reference" "C50"
+			(at 144.78 44.45 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "10u"
+			(at 144.78 46.99 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "Capacitor_SMD:C_0603_1608Metric"
+			(at 143.2052 49.53 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 142.24 45.72 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" "Unpolarized capacitor"
+			(at 142.24 45.72 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Voltage Rating" "10V"
+			(at 146.558 49.2761 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "LCSC PN" "C96446"
+			(at 142.24 45.72 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "a0d55a0b-5ffb-4e78-8e3c-fde1e9cc2a86")
+		)
+		(pin "2"
+			(uuid "409c083a-fd09-4746-ad51-9cd354a3af52")
+		)
+		(instances
+			(project "motherboard"
+				(path "/e3621508-6c00-4b26-a2ad-0f66e38e6b07/c58f3425-6469-4e3b-9df9-a56004d1a458"
+					(reference "C50")
 					(unit 1)
 				)
 			)
