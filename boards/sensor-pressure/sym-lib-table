@@ -1,0 +1,6 @@
+(sym_lib_table
+  (version 7)
+  (lib (name "SP3072EEN-L")(type "KiCad")(uri "${KIPRJMOD}/../library/symbols/SP3072EEN-L.kicad_sym")(options "")(descr ""))
+  (lib (name "HX710B")(type "KiCad")(uri "${KIPRJMOD}/../library/symbols/HX710B.kicad_sym")(options "")(descr ""))
+  (lib (name "GZP160-040S")(type "KiCad")(uri "${KIPRJMOD}/../library/symbols/GZP160-040S.kicad_sym")(options "")(descr ""))
+)
