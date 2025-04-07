@@ -8,7 +8,7 @@
 	)
 	(paper "A4")
 	(title_block
-		(title "OpenPSG Sensor Board")
+		(title "OpenPSG Pressure Sensor")
 		(date "2025-04-04")
 		(rev "1")
 		(company "The OpenPSG Authors")
@@ -2858,7 +2858,7 @@
 			)
 		)
 		(property "Value" "Terminate"
-			(at 0 1.9 360)
+			(at 0 1.9 0)
 			(layer "F.Fab")
 			(hide yes)
 			(uuid "e411190f-df81-46bc-808e-225ef297e495")
@@ -3613,7 +3613,7 @@
 			(solder_mask_margin 0.102)
 			(uuid "30581b1c-68b4-47b2-bd56-7ba34df51293")
 		)
-		(model "${KIPRJMOD}/../library/3dmodels/GZP160-040S.step"
+		(model "../libraries/3dmodels/GZP160-040S.step"
 			(offset
 				(xyz -11 4.25 0)
 			)
@@ -4063,7 +4063,7 @@
 			(pintype "passive")
 			(uuid "e748070a-7119-4967-80ad-5c647823700f")
 		)
-		(model "${KIPRJMOD}/../library/3dmodels/Crystal_SMD_3225-4Pin_3.2x2.5mm.step"
+		(model "../libraries/3dmodels/Crystal_SMD_3225-4Pin_3.2x2.5mm.step"
 			(offset
 				(xyz 0 0 0)
 			)
@@ -5287,7 +5287,7 @@
 			(pintype "power_in")
 			(uuid "4795c1c7-c1b6-4527-a8e7-044ab5ff5406")
 		)
-		(model "${KIPRJMOD}/../library/3dmodels/SOIC8_3P99X4P98.step"
+		(model "../libraries/3dmodels/SOIC8_3P99X4P98.step"
 			(offset
 				(xyz 0 0 0)
 			)
@@ -6155,7 +6155,7 @@
 			)
 			(uuid "5b703ec7-d4b3-448d-91eb-1dedaba61544")
 		)
-		(model "${KIPRJMOD}/../library/3dmodels/QFN-28_4x4mm_P0.5mm.step"
+		(model "../libraries/3dmodels/QFN-28_4x4mm_P0.5mm.step"
 			(offset
 				(xyz 0 0 0)
 			)
@@ -6706,7 +6706,7 @@
 			(pintype "power_in")
 			(uuid "b30eff4c-a474-4380-a643-300bd09a5e44")
 		)
-		(model "${KIPRJMOD}/../library/3dmodels/SOIC8_3P99X4P98.step"
+		(model "../libraries/3dmodels/SOIC8_3P99X4P98.step"
 			(offset
 				(xyz 0 0 0)
 			)

@@ -1,0 +1,18 @@
+Comment,Designator,Footprint,LCSC Part Number
+0.1u,"C1,C3,C4,C5,C9,C10,C12",Capacitor_SMD:C_0402_1005Metric,C1525
+1u,"C2,C6,C7",Capacitor_SMD:C_0402_1005Metric,C52923
+12p,"C8,C11",Capacitor_SMD:C_0402_1005Metric,C1547
+Conn_01x04,J1,Connector_JST:JST_PH_S4B-PH-K_1x04_P2.00mm_Horizontal,C2908636
+Terminate,JP1,Jumper:SolderJumper-2_P1.3mm_Open_RoundedPad1.0x1.5mm,
+10k,R1,Resistor_SMD:R_0402_1005Metric,C25744
+2.2k,"R2,R3",Resistor_SMD:R_0402_1005Metric,C25879
+120,R4,Resistor_SMD:R_0402_1005Metric,C25079
+200k,R5,Resistor_SMD:R_0402_1005Metric,C25764
+4.7k,"R6,R7",Resistor_SMD:R_0402_1005Metric,C25900
+PCA9306DCUR,U1,Package_SO:VSSOP-8_2.4x2.1mm_P0.5mm,C33196
+ICM-20948,U2,Sensor_Motion:InvenSense_QFN-24_3x3mm_P0.4mm,C726001
+AP2112K-3.3,U3,Package_TO_SOT_SMD:SOT-23-5,C51118
+AP2112K-1.8,U4,Package_TO_SOT_SMD:SOT-23-5,C176944
+SP3072EEN-L,U5,Package_SO:SOP-8_3.9x4.9mm_P1.27mm,C2692300
+STM32G031G8Ux,U6,Package_DFN_QFN:QFN-28_4x4mm_P0.5mm,C432211
+32.768k,Y1,Crystal:Crystal_SMD_3215-2Pin_3.2x1.5mm,C32346

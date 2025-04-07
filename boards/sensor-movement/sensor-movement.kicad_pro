@@ -58,7 +58,9 @@
           "width": 0.0
         }
       ],
-      "drc_exclusions": [],
+      "drc_exclusions": [
+        "lib_footprint_mismatch|22860000|193585000|0c6aa4dd-aa2b-48db-a26b-385b58543f1b|00000000-0000-0000-0000-000000000000"
+      ],
       "meta": {
         "version": 2
       },
@@ -467,7 +469,7 @@
     "pinned_symbol_libs": []
   },
   "meta": {
-    "filename": "sensor-pressure.kicad_pro",
+    "filename": "sensor-movement.kicad_pro",
     "version": 1
   },
   "net_settings": {
@@ -502,8 +504,8 @@
       "gencad": "",
       "idf": "",
       "netlist": "",
-      "plot": "gerbers/v1-20250404/",
-      "pos_files": "gerbers/v1-20250404/",
+      "plot": "gerbers/v1-20250406/",
+      "pos_files": "gerbers/v1-20250406/",
       "specctra_dsn": "",
       "step": "",
       "svg": "",
