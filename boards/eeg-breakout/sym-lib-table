@@ -1,0 +1,5 @@
+(sym_lib_table
+  (version 7)
+  (lib (name "SP3072EEN-L")(type "KiCad")(uri "${KIPRJMOD}/../libraries/symbols/SP3072EEN-L.kicad_sym")(options "")(descr ""))
+  (lib (name "ADS1292IRSMR")(type "KiCad")(uri "${KIPRJMOD}/../libraries/symbols/ADS1292IRSMR.kicad_sym")(options "")(descr ""))
+)
