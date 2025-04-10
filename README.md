@@ -1,12 +1,13 @@
 # OpenPSG
 
-A FOSS Polysomnography Platform For Sleep Research.
+A [FOSS](https://www.gnu.org/philosophy/free-sw.en.html) Polysomnography Platform For Sleep Research.
 
 ## Philosophy
 
 * **Cost is Critical** (off-the-shelf, commodity components).
 * **Less is More** (if one sensor can do the job of two, use it).
 * **Easy to Use** (no complex setup/prep work).
+* **Modular** (mix and match sensors).
 * **Open Source** (hardware and software).
 * **Open Data** (no proprietary formats).
 
