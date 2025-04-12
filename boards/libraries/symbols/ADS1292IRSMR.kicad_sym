@@ -128,7 +128,7 @@
 					)
 				)
 			)
-			(pin power_in line
+			(pin power_out line
 				(at -22.86 -6.35 0)
 				(length 2.54)
 				(name "VCAP1"
@@ -434,7 +434,7 @@
 					)
 				)
 			)
-			(pin power_in line
+			(pin power_out line
 				(at 19.05 3.81 180)
 				(length 2.54)
 				(name "VCAP2"
@@ -524,7 +524,7 @@
 					)
 				)
 			)
-			(pin bidirectional line
+			(pin input line
 				(at 19.05 13.97 180)
 				(length 2.54)
 				(name "RESP_MODP/IN3P"
@@ -542,7 +542,7 @@
 					)
 				)
 			)
-			(pin bidirectional line
+			(pin input line
 				(at 19.05 16.51 180)
 				(length 2.54)
 				(name "RESP_MODN_IN3N"
@@ -560,7 +560,7 @@
 					)
 				)
 			)
-			(pin unspecified line
+			(pin power_in line
 				(at 19.05 19.05 180)
 				(length 2.54)
 				(name "EPAD"
