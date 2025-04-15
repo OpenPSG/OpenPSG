@@ -1,0 +1,16 @@
+Comment,Designator,Footprint,LCSC Part Number
+1u,"C1,C4",Capacitor_SMD:C_0402_1005Metric,C52923
+0.1u,"C2,C3,C7",Capacitor_SMD:C_0402_1005Metric,C1525
+12p,"C5,C6",Capacitor_SMD:C_0402_1005Metric,C1547
+1n,C8,Capacitor_SMD:C_0402_1005Metric,C1523
+1N5819WS,D1,Diode_SMD:D_SOD-323,C191023
+RS485,J1,Connector_JST:JST_PH_S4B-PH-K_1x04_P2.00mm_Horizontal,C2908636
+Download,J3,Connector_PinHeader_1.27mm:PinHeader_1x02_P1.27mm_Vertical,C703015
+Vibration Motor,J4,Connector_JST:JST_PH_S2B-PH-K_1x02_P2.00mm_Horizontal,C2908634
+Terminate,JP1,Jumper:SolderJumper-2_P1.3mm_Open_RoundedPad1.0x1.5mm,
+AO3400,Q1,Package_TO_SOT_SMD:SOT-23,C20917
+120,"R1,R2",Resistor_SMD:R_0402_1005Metric,C25079
+AP2112K-3.3,U1,Package_TO_SOT_SMD:SOT-23-5,C51118
+COS13487E,U2,Package_SO:SOP-8_3.9x4.9mm_P1.27mm,C22466040
+STM32G031G8Ux,U3,Package_DFN_QFN:QFN-28_4x4mm_P0.5mm,C432211
+32.768k,Y1,Crystal:Crystal_SMD_3215-2Pin_3.2x1.5mm,C32346
