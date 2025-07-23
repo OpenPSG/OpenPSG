@@ -42,6 +42,12 @@ import {
 import { resample } from "@/lib/resampling/resample";
 import FullPageSpinner from "@/components/FullPageSpinner";
 
+const floorToEpoch = (date: Date, epochDuration: number): Date => {
+  const timestamp = date.getTime();
+  const floored = Math.floor(timestamp / epochDuration) * epochDuration;
+  return new Date(floored);
+};
+
 const writeEDFFile = (
   signals: EDFSignal[],
   values: Values[],
@@ -137,14 +143,12 @@ export default function Record() {
     };
   }, []);
 
-  const floorToEpoch = (date: Date, epochDuration: number): Date => {
-    const timestamp = date.getTime();
-    const floored = Math.floor(timestamp / epochDuration) * epochDuration;
-    return new Date(floored);
-  };
-
-  const onConfigureSensor = useCallback(
-    async (data: Record<string, ConfigValue>, driverOverride?: Driver) => {
+  const handleSensorConfigComplete = useCallback(
+    async (
+      submitted: boolean,
+      data?: Record<string, ConfigValue>,
+      driverOverride?: Driver,
+    ) => {
       const driverToUse =
         driverOverride !== undefined && driverOverride.signals !== undefined
           ? driverOverride
@@ -154,7 +158,13 @@ export default function Record() {
         return;
       }
 
-      driverToUse.configure?.(data);
+      if (!submitted) {
+        await driverToUse.close();
+        setConfigureSensorDialogOpen(false);
+        return;
+      }
+
+      driverToUse.configure?.(data ?? {});
       const newSignals: EDFSignal[] = driverToUse.signals(EPOCH_DURATION);
       const startIndex = signals.length;
 
@@ -204,7 +214,7 @@ export default function Record() {
       setActiveDriver(driver);
 
       if (!driver.configSchema || driver.configSchema.length === 0) {
-        await onConfigureSensor({}, driver);
+        await handleSensorConfigComplete(true, undefined, driver);
       } else {
         setConfigureSensorDialogOpen(true);
       }
@@ -271,9 +281,8 @@ export default function Record() {
 
       <SensorConfigDialog
         open={configureSensorDialogOpen}
-        onOpenChange={setConfigureSensorDialogOpen}
         activeDriver={activeDriver}
-        onConfigure={onConfigureSensor}
+        onComplete={handleSensorConfigComplete}
       />
 
       {isConnecting && <FullPageSpinner message="Connecting ..." />}

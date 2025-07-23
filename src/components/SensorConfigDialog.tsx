@@ -58,16 +58,14 @@ const isFieldVisible = (
 
 interface SensorConfigDialogProps {
   open: boolean;
-  onOpenChange: (open: boolean) => void;
   activeDriver?: Driver;
-  onConfigure: (data: Record<string, ConfigValue>) => void;
+  onComplete: (submitted: boolean, data?: Record<string, ConfigValue>) => void;
 }
 
 const SensorConfigDialog: React.FC<SensorConfigDialogProps> = ({
   open,
-  onOpenChange,
   activeDriver,
-  onConfigure,
+  onComplete,
 }) => {
   const { register, handleSubmit, reset, formState, setValue, watch } =
     useForm();
@@ -93,9 +91,10 @@ const SensorConfigDialog: React.FC<SensorConfigDialogProps> = ({
   return (
     <Dialog
       open={open}
-      onOpenChange={(newOpen) => {
-        onOpenChange(newOpen);
-        if (!newOpen) reset();
+      onOpenChange={(open) => {
+        if (!open) {
+          onComplete(false);
+        }
       }}
     >
       <DialogContent>
@@ -106,7 +105,12 @@ const SensorConfigDialog: React.FC<SensorConfigDialogProps> = ({
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit(onConfigure)} className="space-y-4">
+        <form
+          onSubmit={handleSubmit((data: Record<string, ConfigValue>) => {
+            onComplete(true, data);
+          })}
+          className="space-y-4"
+        >
           {activeDriver?.configSchema?.map((field) => {
             if (!isFieldVisible(field, formValues)) return null;
 
