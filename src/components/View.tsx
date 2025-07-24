@@ -23,7 +23,7 @@ export default function View() {
     try {
       setLoading(true);
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      //eslint-disable-next-line @typescript-eslint/no-explicit-any
       const [fileHandle] = await (window as any).showOpenFilePicker({
         types: [
           {
@@ -34,6 +34,16 @@ export default function View() {
         excludeAcceptAllOption: true,
         multiple: false,
       });
+
+      // Ensure read permission is granted
+      let permission = await fileHandle.queryPermission({ mode: "read" });
+      if (permission === "prompt") {
+        permission = await fileHandle.requestPermission({ mode: "read" });
+      }
+
+      if (permission !== "granted") {
+        throw new Error("Permission to read file was denied.");
+      }
 
       const file = await fileHandle.getFile();
 
