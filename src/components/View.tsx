@@ -1,23 +1,8 @@
-/*
- * Copyright (C) 2025 The OpenPSG Authors
- *
- * This file is licensed under the Functional Source License 1.1
- * with a grant of AGPLv3-or-later effective two years after publication.
- *
- * You may not use this file except in compliance with the License.
- * A copy of the license is available in the root of the repository
- * and online at: https://fsl.software
- *
- * After two years from publication, this file may also be used under
- * the GNU Affero General Public License, version 3 or (at your option) any
- * later version. See <https://www.gnu.org/licenses/agpl-3.0.html> for details.
- */
-
 import { useState } from "react";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Monitor } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Monitor, FolderOpen } from "lucide-react";
 import { EDFReader } from "@/lib/edf/edfreader";
 import Plot from "@/components/plot/Plot";
 import FullPageSpinner from "@/components/FullPageSpinner";
@@ -32,53 +17,62 @@ export default function View() {
   const [values, setValues] = useState<Values[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleOpenFile = async () => {
     setError(undefined);
-    const file = e.target.files?.[0];
-    if (!file) return;
 
-    setLoading(true);
+    try {
+      setLoading(true);
 
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const buffer = event.target?.result as ArrayBuffer;
-      try {
-        const reader = new EDFReader(new Uint8Array(buffer));
-        const header = reader.readHeader();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const [fileHandle] = await (window as any).showOpenFilePicker({
+        types: [
+          {
+            description: "EDF+ File",
+            accept: { "application/octet-stream": [".edf"] },
+          },
+        ],
+        excludeAcceptAllOption: true,
+        multiple: false,
+      });
 
-        const values: Values[] = header.signals.map((signal) => {
-          const sampleRate = signal.samplesPerRecord / header.recordDuration;
-          const raw = reader.readValues(signal.label);
+      const file = await fileHandle.getFile();
 
-          const timestamps = raw.map(
-            (_, i) => header.startTime.getTime() + i * (1000 / sampleRate),
-          );
-          return {
-            timestamps,
-            values: raw,
-          };
-        });
+      const buffer = await file.arrayBuffer();
+      const reader = new EDFReader(new Uint8Array(buffer));
+      const header = reader.readHeader();
 
-        setStartTime(header.startTime);
-        setSignals(header.signals);
-        setValues(values);
-      } catch (err: unknown) {
-        const message = err instanceof Error ? err.message : String(err);
-        setError(`Failed to load the uploaded data: ${message}`);
-        setStartTime(new Date());
-        setSignals(undefined);
-        setValues([]);
-      } finally {
-        setLoading(false);
-      }
-    };
+      const extractedValues: Values[] = header.signals.map((signal) => {
+        const sampleRate = signal.samplesPerRecord / header.recordDuration;
+        const raw = reader.readValues(signal.label);
 
-    reader.readAsArrayBuffer(file);
+        const timestamps = raw.map(
+          (_, i) => header.startTime.getTime() + i * (1000 / sampleRate),
+        );
+
+        return {
+          timestamps,
+          values: raw,
+        };
+      });
+
+      setStartTime(header.startTime);
+      setSignals(header.signals);
+      setValues(extractedValues);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      setError(`Failed to open EDF file: ${message}`);
+      setStartTime(new Date());
+      setSignals(undefined);
+      setValues([]);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
     <>
       {loading && <FullPageSpinner message="Loading ..." />}
+
       <Card
         className={clsx(
           "flex flex-col flex-grow mx-auto shadow-xl",
@@ -100,7 +94,10 @@ export default function View() {
                 </Alert>
               )}
 
-              <Input type="file" accept=".edf" onChange={handleFileChange} />
+              <Button onClick={handleOpenFile} variant="default">
+                <FolderOpen className="w-4 h-4 mr-2" />
+                Open EDF File
+              </Button>
             </CardContent>
           </>
         ) : (
