@@ -19,6 +19,7 @@ import { EDFWriter } from "./edfwriter";
 import { EDFReader } from "./edfreader";
 import type { EDFHeader, EDFSignal, EDFAnnotation } from "./edftypes";
 import { describe, expect, it } from "vitest";
+import { MemoryWritableStream } from "@/lib/stream";
 
 function createTestHeader(signalCount = 1, records = 1): EDFHeader {
   const signals: EDFSignal[] = Array(signalCount)
@@ -62,38 +63,12 @@ function expectToBeImprecise(
   }
 }
 
-function createMemoryWritableStream(): {
-  writer: WritableStreamDefaultWriter<Uint8Array>;
-  getBuffer: () => Promise<Uint8Array>;
-} {
-  const chunks: Uint8Array[] = [];
-  const stream = new WritableStream<Uint8Array>({
-    write(chunk) {
-      chunks.push(chunk);
-    },
-  });
-  const writer = stream.getWriter();
-  return {
-    writer,
-    async getBuffer() {
-      const totalLength = chunks.reduce((sum, c) => sum + c.length, 0);
-      const result = new Uint8Array(totalLength);
-      let offset = 0;
-      for (const chunk of chunks) {
-        result.set(chunk, offset);
-        offset += chunk.length;
-      }
-      return result;
-    },
-  };
-}
-
 describe("EDFWriter", () => {
   it("writes a simple EDF file without annotations", async () => {
     const header = createTestHeader(1, 2);
     const values = [[...Array(20).keys()].map((i) => i - 10)];
 
-    const { writer, getBuffer } = createMemoryWritableStream();
+    const { writer, getBuffer } = MemoryWritableStream();
     const edfWriter = new EDFWriter(writer);
     await edfWriter.writeHeader(header);
     await edfWriter.writeRecord([values[0].slice(0, 10)]);
@@ -117,7 +92,7 @@ describe("EDFWriter", () => {
   it("pads signal data when too short", async () => {
     const header = createTestHeader(1, 2);
 
-    const { writer, getBuffer } = createMemoryWritableStream();
+    const { writer, getBuffer } = MemoryWritableStream();
     const edfWriter = new EDFWriter(writer);
     await edfWriter.writeHeader(header);
     await edfWriter.writeRecord([[1, 2, 3, 0, 0, 0, 0, 0, 0, 0]]);
@@ -137,7 +112,7 @@ describe("EDFWriter", () => {
       { onset: 0.5, annotation: "Event A" },
     ];
 
-    const { writer, getBuffer } = createMemoryWritableStream();
+    const { writer, getBuffer } = MemoryWritableStream();
     const edfWriter = new EDFWriter(writer);
     await edfWriter.writeHeader(header);
     await edfWriter.writeRecord([values[0]], annotations);
@@ -183,7 +158,7 @@ describe("EDFWriter", () => {
       samplesPerRecord: sampleRate * recordDuration,
     };
 
-    const { writer, getBuffer } = createMemoryWritableStream();
+    const { writer, getBuffer } = MemoryWritableStream();
     const edfWriter = new EDFWriter(writer);
     await edfWriter.writeHeader(header);
 

@@ -20,9 +20,7 @@ const ANNOTATION_RECORD_LENGTH = 64; // Number of samples for annotation signal 
 
 export class EDFWriter {
   private textEncoder = new TextEncoder();
-  private stream:
-    | WritableStreamDefaultWriter<Uint8Array>
-    | FileSystemWritableFileStream;
+  private stream: WritableStreamDefaultWriter<Uint8Array>;
   private header?: EDFHeader;
   private headerWritten = false;
 
@@ -31,11 +29,7 @@ export class EDFWriter {
   private currentRecord = 0;
   private recordsWritten = 0;
 
-  constructor(
-    stream:
-      | WritableStreamDefaultWriter<Uint8Array>
-      | FileSystemWritableFileStream,
-  ) {
+  constructor(stream: WritableStreamDefaultWriter<Uint8Array>) {
     this.stream = stream;
   }
 

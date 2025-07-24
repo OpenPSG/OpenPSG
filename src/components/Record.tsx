@@ -19,9 +19,14 @@ import { DriverRegistry } from "@/lib/drivers/driver-registry";
 import { EPOCH_DURATION } from "@/lib/constants";
 import SensorConfigDialog from "@/components/SensorConfigDialog";
 import { EDFWriter } from "@/lib/edf/edfwriter";
-import { checkWebBluetoothSupport, uniqueFilename } from "@/lib/utils";
+import {
+  checkWebBluetoothSupport,
+  uniqueFilename,
+  triggerDownload,
+} from "@/lib/utils";
 import FullPageSpinner from "@/components/FullPageSpinner";
 import { resample } from "@/lib/resampling/resample";
+import { MemoryWritableStream } from "@/lib/stream";
 
 const VALUE_RETENTION_MS = 5 * 60 * 1000; // 5 minutes
 
@@ -36,7 +41,9 @@ export default function Record() {
   const [activeDriver, setActiveDriver] = useState<Driver | undefined>(
     undefined,
   );
-  const [edfWriter, setEdfWriter] = useState<EDFWriter | null>(null);
+  const [edfWriter, setEdfWriter] = useState<EDFWriter | undefined>(undefined);
+  const bufferGetterRef =
+    useRef<() => Promise<Uint8Array> | undefined>(undefined);
 
   const sensorDrivers = useRef<Driver[]>([]);
   const wakeLockRef = useRef<WakeLockSentinel | undefined>(undefined);
@@ -201,13 +208,25 @@ export default function Record() {
     if (recording) {
       try {
         await edfWriter?.close();
+
+        if (bufferGetterRef.current) {
+          const buffer = await bufferGetterRef.current();
+          if (!buffer) {
+            throw new Error("No buffer available for download.");
+          }
+
+          const blob = new Blob([buffer], { type: "application/octet-stream" });
+          triggerDownload(blob, uniqueFilename("edf"));
+        } else {
+          console.warn("EDF buffer not available for download.");
+        }
       } catch (err) {
         const errMsg = err instanceof Error ? err.message : String(err);
         setError("Failed to close EDF writer: " + errMsg);
+      } finally {
+        setEdfWriter(undefined);
+        setRecording(false);
       }
-
-      setEdfWriter(null);
-      setRecording(false);
 
       if (wakeLockRef.current) {
         try {
@@ -228,18 +247,11 @@ export default function Record() {
     }
 
     try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const fileHandle = await (window as any).showSaveFilePicker({
-        suggestedName: uniqueFilename("edf"),
-        types: [
-          {
-            description: "EDF+ File",
-            accept: { "application/octet-stream": [".edf"] },
-          },
-        ],
-      });
+      // I would love to use showSaveFilePicker/showOpenFilePicker here but I've
+      // found a lot of android bugs, and it's a very new API.
+      const { writer: writable, getBuffer } = MemoryWritableStream();
+      bufferGetterRef.current = getBuffer;
 
-      const writable = await fileHandle.createWritable();
       const writer = new EDFWriter(writable);
 
       const now = new Date();
@@ -257,7 +269,7 @@ export default function Record() {
       setEdfWriter(writer);
       setRecording(true);
 
-      if ("wakeLock" in navigator) {
+      if ("wakeLock" in navigator && !wakeLockRef.current) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const lock = await (navigator as any).wakeLock.request("screen");
         wakeLockRef.current = lock;
