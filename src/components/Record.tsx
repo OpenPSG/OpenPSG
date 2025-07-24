@@ -1,23 +1,8 @@
-/*
- * Copyright (C) 2025 The OpenPSG Authors
- *
- * This file is licensed under the Functional Source License 1.1
- * with a grant of AGPLv3-or-later effective two years after publication.
- *
- * You may not use this file except in compliance with the License.
- * A copy of the license is available in the root of the repository
- * and online at: https://fsl.software
- *
- * After two years from publication, this file may also be used under
- * the GNU Affero General Public License, version 3 or (at your option) any
- * later version. See <https://www.gnu.org/licenses/agpl-3.0.html> for details.
- */
-
 import { useCallback, useState, useEffect, useRef } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Plus, Circle, Square } from "lucide-react";
-import Plot from "@/components/plot/plot";
+import Plot from "@/components/plot/Plot";
 import {
   AlertDialog,
   AlertDialogContent,
@@ -34,80 +19,15 @@ import { DriverRegistry } from "@/lib/drivers/driver-registry";
 import { EPOCH_DURATION } from "@/lib/constants";
 import SensorConfigDialog from "@/components/SensorConfigDialog";
 import { EDFWriter } from "@/lib/edf/edfwriter";
-import {
-  checkWebBluetoothSupport,
-  triggerDownload,
-  uniqueFilename,
-} from "@/lib/utils";
-import { resample } from "@/lib/resampling/resample";
+import { checkWebBluetoothSupport, uniqueFilename } from "@/lib/utils";
 import FullPageSpinner from "@/components/FullPageSpinner";
+import { resample } from "@/lib/resampling/resample";
 
-const floorToEpoch = (date: Date, epochDuration: number): Date => {
-  const timestamp = date.getTime();
-  const floored = Math.floor(timestamp / epochDuration) * epochDuration;
-  return new Date(floored);
-};
-
-const writeEDFFile = (
-  signals: EDFSignal[],
-  values: Values[],
-  startTime: Date,
-) => {
-  if (!signals.length || !values.length) return;
-
-  const recordDuration = EPOCH_DURATION;
-  const samplesPerRecordList = signals.map((s) => s.samplesPerRecord);
-
-  // Filter out values before the recording start time
-  const filteredValues: Values[] = values.map((val) => {
-    const start = startTime.getTime();
-    const filtered: Values = {
-      timestamps: [],
-      values: [],
-    };
-    for (let i = 0; i < val.timestamps.length; i++) {
-      if (val.timestamps[i] >= start) {
-        filtered.timestamps.push(val.timestamps[i]);
-        filtered.values.push(val.values[i]);
-      }
-    }
-    return filtered;
-  });
-
-  // Compute number of data records based on the longest signal
-  const dataRecordCounts = filteredValues.map((val, i) =>
-    Math.ceil(val.values.length / samplesPerRecordList[i]),
-  );
-  const dataRecords = Math.max(...dataRecordCounts);
-
-  // Resample everything into a fixed time base
-  const resampledValues: number[][] = filteredValues.map((val, i) => {
-    const targetLength = dataRecords * samplesPerRecordList[i];
-    return resample(val, targetLength).values;
-  });
-
-  const header = {
-    patientId: EDFWriter.patientId({}),
-    recordingId: EDFWriter.recordingId({ startDate: startTime }),
-    startTime,
-    dataRecords,
-    recordDuration,
-    signalCount: signals.length,
-    signals,
-  };
-
-  const writer = new EDFWriter(header, resampledValues);
-  const buffer = writer.write();
-  const blob = new Blob([buffer], { type: "application/octet-stream" });
-  const filename = uniqueFilename("edf");
-
-  triggerDownload(blob, filename);
-};
+const VALUE_RETENTION_MS = 5 * 60 * 1000; // 5 minutes
 
 export default function Record() {
   const [startTime, setStartTime] = useState<Date>(new Date());
   const [signals, setSignals] = useState<EDFSignal[]>([]);
-  const [values, setValues] = useState<Values[]>([]);
   const [recording, setRecording] = useState<boolean>(false);
   const [configureSensorDialogOpen, setConfigureSensorDialogOpen] =
     useState(false);
@@ -116,12 +36,11 @@ export default function Record() {
   const [activeDriver, setActiveDriver] = useState<Driver | undefined>(
     undefined,
   );
-  const [recordingStartTime, setRecordingStartTime] = useState<
-    Date | undefined
-  >(undefined);
-  const sensorDrivers = useRef<Driver[]>([]);
+  const [edfWriter, setEdfWriter] = useState<EDFWriter | null>(null);
 
+  const sensorDrivers = useRef<Driver[]>([]);
   const wakeLockRef = useRef<WakeLockSentinel | undefined>(undefined);
+  const valuesRef = useRef<Values[]>([]);
 
   // Cleanup drivers/wakelock on unmount
   useEffect(() => {
@@ -143,20 +62,60 @@ export default function Record() {
     };
   }, []);
 
+  // EDF Record writing loop using interval
+  useEffect(() => {
+    if (!recording || !edfWriter || signals.length === 0) return;
+
+    const interval = setInterval(async () => {
+      if (!edfWriter || !recording || !valuesRef.current.length) return;
+
+      const now = Date.now();
+      const epochMs = EPOCH_DURATION * 1000;
+
+      const samplesPerRecordList = signals.map((s) => s.samplesPerRecord);
+      const currentValues = valuesRef.current;
+
+      const recentValues: Values[] = currentValues.map((v) => {
+        const fromTime = now - epochMs;
+        const timestamps: number[] = [];
+        const vals: number[] = [];
+
+        for (let i = v.timestamps.length - 1; i >= 0; i--) {
+          if (v.timestamps[i] >= fromTime) {
+            timestamps.unshift(v.timestamps[i]);
+            vals.unshift(v.values[i]);
+          } else {
+            break;
+          }
+        }
+
+        return { timestamps, values: vals };
+      });
+
+      const resampled: number[][] = recentValues.map((v, i) => {
+        const samples = samplesPerRecordList[i];
+        const { values: resampledVals } = resample(v, samples);
+        return resampledVals;
+      });
+
+      try {
+        await edfWriter.writeRecord(resampled);
+      } catch (err) {
+        console.error("Error writing EDF record:", err);
+      }
+    }, EPOCH_DURATION * 1000);
+
+    return () => clearInterval(interval);
+  }, [edfWriter, recording, signals]);
+
   const handleSensorConfigComplete = useCallback(
     async (
       submitted: boolean,
       data?: Record<string, ConfigValue>,
       driverOverride?: Driver,
     ) => {
-      const driverToUse =
-        driverOverride !== undefined && driverOverride.signals !== undefined
-          ? driverOverride
-          : activeDriver;
-
-      if (!driverToUse) {
-        return;
-      }
+      const driverToUse = driverOverride ?? activeDriver;
+      if (!driverToUse) return;
 
       if (!submitted) {
         await driverToUse.close();
@@ -169,26 +128,36 @@ export default function Record() {
       const startIndex = signals.length;
 
       setSignals((prev) => [...prev, ...newSignals]);
-      setStartTime(
-        (prevTime) => prevTime ?? floorToEpoch(new Date(), EPOCH_DURATION),
-      );
+      setStartTime((prev) => prev ?? new Date());
+      valuesRef.current = [
+        ...valuesRef.current,
+        ...newSignals.map(() => ({ timestamps: [], values: [] })),
+      ];
       setConfigureSensorDialogOpen(false);
 
       (async () => {
         try {
           for await (const next of driverToUse.values()) {
-            setValues((prev) => {
-              const updated = [...prev];
-              for (let i = 0; i < next.length; i++) {
-                const signalIndex = startIndex + i;
-                if (!updated[signalIndex]) {
-                  updated[signalIndex] = { timestamps: [], values: [] };
-                }
-                updated[signalIndex].timestamps.push(next[i].timestamp);
-                updated[signalIndex].values.push(next[i].value);
+            const updated = valuesRef.current;
+            const now = Date.now();
+
+            for (let i = 0; i < next.length; i++) {
+              const signalIndex = startIndex + i;
+              if (!updated[signalIndex]) {
+                updated[signalIndex] = { timestamps: [], values: [] };
               }
-              return updated;
-            });
+
+              updated[signalIndex].timestamps.push(next[i].timestamp);
+              updated[signalIndex].values.push(next[i].value);
+
+              const ts = updated[signalIndex].timestamps;
+              const vs = updated[signalIndex].values;
+
+              while (ts.length > 0 && ts[0] < now - VALUE_RETENTION_MS) {
+                ts.shift();
+                vs.shift();
+              }
+            }
           }
         } catch (err) {
           const errMsg = err instanceof Error ? err.message : String(err);
@@ -198,19 +167,18 @@ export default function Record() {
         }
       })();
     },
-    [activeDriver, signals.length],
+    [activeDriver, signals],
   );
 
   const handleAddSensor = async () => {
     try {
       checkWebBluetoothSupport();
-
       setIsConnecting(true);
 
       const service = await DriverRegistry.scanForSupportedDevice();
       const driver = DriverRegistry.createDriverForService(service);
 
-      sensorDrivers.current?.push(driver);
+      sensorDrivers.current.push(driver);
       setActiveDriver(driver);
 
       if (!driver.configSchema || driver.configSchema.length === 0) {
@@ -230,10 +198,8 @@ export default function Record() {
 
   const handleToggleRecording = useCallback(async () => {
     if (recording) {
-      if (signals.length && values.length && recordingStartTime) {
-        writeEDFFile(signals, values, recordingStartTime);
-      }
-      setRecordingStartTime(undefined);
+      await edfWriter?.close();
+      setEdfWriter(null);
       setRecording(false);
 
       if (wakeLockRef.current) {
@@ -245,25 +211,71 @@ export default function Record() {
           wakeLockRef.current = undefined;
         }
       }
-    } else {
-      setRecordingStartTime(new Date());
+
+      return;
+    }
+
+    if (!signals.length) {
+      setError("At least one sensor must be configured before recording.");
+      return;
+    }
+
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const fileHandle = await (window as any).showSaveFilePicker({
+        suggestedName: uniqueFilename("edf"),
+        types: [
+          {
+            description: "EDF+ File",
+            accept: { "application/octet-stream": [".edf"] },
+          },
+        ],
+      });
+
+      const writable = await fileHandle.createWritable();
+      const writer = new EDFWriter(writable);
+
+      const now = new Date();
+      const header = {
+        patientId: EDFWriter.patientId({}),
+        recordingId: EDFWriter.recordingId({ startDate: now }),
+        startTime: now,
+        dataRecords: -1,
+        recordDuration: EPOCH_DURATION,
+        signalCount: signals.length,
+        signals,
+      };
+
+      await writer.writeHeader(header);
+      setEdfWriter(writer);
       setRecording(true);
 
-      try {
-        if ("wakeLock" in navigator) {
-          //eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const lock = await (navigator as any).wakeLock.request("screen");
-          wakeLockRef.current = lock;
-
-          lock.addEventListener("release", () => {
-            wakeLockRef.current = undefined;
-          });
-        }
-      } catch (err) {
-        console.warn("Wake Lock request failed:", err);
+      if ("wakeLock" in navigator) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const lock = await (navigator as any).wakeLock.request("screen");
+        wakeLockRef.current = lock;
+        lock.addEventListener("release", () => {
+          wakeLockRef.current = undefined;
+        });
       }
+    } catch (err) {
+      console.error("Failed to start recording:", err);
+      setError("Unable to open file for recording.");
     }
-  }, [recording, signals, values, recordingStartTime]);
+  }, [recording, signals, edfWriter]);
+
+  // Trigger a plot update every second, this is necessary as we are using a
+  // ref for the values array.
+  const [revision, setRevision] = useState(0);
+  useEffect(() => {
+    if (!signals.length) return;
+
+    const interval = setInterval(() => {
+      setRevision((r) => r + 1);
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [signals]);
 
   return (
     <>
@@ -297,6 +309,7 @@ export default function Record() {
           <Button
             variant={recording ? "destructive" : "default"}
             onClick={handleToggleRecording}
+            disabled={!signals.length}
           >
             {recording ? (
               <>
@@ -315,8 +328,9 @@ export default function Record() {
         <Plot
           startTime={startTime}
           signals={signals}
-          values={values}
+          values={valuesRef.current}
           followMode={true}
+          revision={revision}
         />
       </Card>
     </>

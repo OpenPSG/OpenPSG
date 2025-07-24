@@ -21,19 +21,17 @@ import React, {
   useRef,
 } from "react";
 import PlotlyPlot from "react-plotly.js";
-import throttle from "lodash/throttle";
-import "./Plot.css";
+import "./plot.css";
 import { resample } from "@/lib/resampling/resample";
 import ChannelConfigDialog from "./ChannelConfigDialog";
 import { parseRelayoutEvent, getTickValsAndText } from "./utils";
 import type { EDFSignal } from "@/lib/edf/edftypes";
 import { EPOCH_DURATION } from "@/lib/constants";
 import type { Values } from "@/lib/types";
+import throttle from "lodash/throttle";
 
 // How frequently to respond to x-axis range changes
 const XRANGE_UPDATE_INTERVAL = 100; // ms
-// How frequently to update signal values in the plot
-const VALUE_UPDATE_INTERVAL = 1_000; // ms
 
 const useXRange = (totalDuration: number) => {
   // We need two separate state variables for the x-axis range otherwise
@@ -103,11 +101,11 @@ const useKeyboardNavigation = (
 };
 
 export interface SignalScaling {
-  bipolar?: boolean; // If true, the signal is bipolar (- to +)
-  midpoint?: number; // Midpoint for bipolar signals
-  halfrange?: number; // Half-range for bipolar signals
-  min?: number; // Minimum value for unipolar signals
-  max?: number; // Maximum value for unipolar signals
+  bipolar?: boolean;
+  midpoint?: number;
+  halfrange?: number;
+  min?: number;
+  max?: number;
 }
 
 export interface PlotProps {
@@ -115,6 +113,7 @@ export interface PlotProps {
   signals: EDFSignal[];
   values: Values[];
   followMode?: boolean;
+  revision?: number;
 }
 
 const Plot: React.FC<PlotProps> = ({
@@ -122,15 +121,13 @@ const Plot: React.FC<PlotProps> = ({
   signals,
   values,
   followMode,
+  revision = 0,
 }) => {
   const plotWrapperRef = useRef<HTMLDivElement | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
 
-  // Give the plot wrapper focus so it can capture keyboard events
   useEffect(() => {
-    // No keyboard navigation in non-interactive mode
     if (followMode) return;
-
     if (plotWrapperRef.current) {
       if (modalOpen) {
         plotWrapperRef.current.blur();
@@ -140,42 +137,25 @@ const Plot: React.FC<PlotProps> = ({
     }
   }, [modalOpen, followMode]);
 
-  const [throttledValues, setThrottledValues] = useState(values);
-
-  // Don't choke on frequent value updates (particularly in follow mode)
-  const throttledUpdateValues = useMemo(
-    () =>
-      throttle((latest: typeof values) => {
-        setThrottledValues(latest);
-      }, VALUE_UPDATE_INTERVAL),
-    [],
-  );
-
-  useEffect(() => {
-    throttledUpdateValues(values);
-  }, [values, throttledUpdateValues]);
-
   const totalDuration = useMemo(() => {
-    if (!signals || signals.length === 0) return 0;
-    if (throttledValues.length === 0) return 0;
+    void revision;
 
-    const maxDuration = throttledValues.reduce((max, series) => {
+    if (!signals || signals.length === 0) return 0;
+    if (values.length === 0) return 0;
+
+    const maxDuration = values.reduce((max, series) => {
       if (series.timestamps.length === 0) return max;
       const lastTimestamp = series.timestamps[series.timestamps.length - 1];
       return Math.max(max, lastTimestamp - startTime.getTime());
     }, 0);
-    return Math.max(maxDuration, EPOCH_DURATION) / 1000; // Convert to seconds
-  }, [signals, startTime, throttledValues]);
+    return Math.max(maxDuration, EPOCH_DURATION) / 1000;
+  }, [signals, startTime, values, revision]);
 
   const { xRange, plotlyXRange, throttledSetXRange } = useXRange(totalDuration);
 
-  // Follow mode: automatically scroll to the next epoch
   useEffect(() => {
     if (!followMode) return;
-
     const end = xRange[1];
-
-    // If latest data is beyond the current view, scroll to next epoch
     if (totalDuration > end) {
       const nextStart =
         Math.floor(totalDuration / EPOCH_DURATION) * EPOCH_DURATION;
@@ -235,15 +215,16 @@ const Plot: React.FC<PlotProps> = ({
       } else if (scaling?.min != null && scaling.max != null) {
         return [scaling.min, scaling.max];
       } else {
-        // Return undefined if scaling isn't ready
         return undefined;
       }
     });
   }, [signals, channelScaling]);
 
   const traces = useMemo(() => {
+    void revision;
+
     return signals.map((signal, index) => {
-      const series = throttledValues[index];
+      const series = values[index];
       if (!series || series.timestamps.length === 0) {
         return {
           x: [],
@@ -300,10 +281,9 @@ const Plot: React.FC<PlotProps> = ({
         hovertemplate: `<b>${signal.label}</b><br>Value: %{y:.2f} ${signal.physicalDimension}<extra></extra>`,
       };
     });
-  }, [signals, throttledValues, xRange, startTime]);
+  }, [signals, values, xRange, startTime, revision]);
 
   const layout: Partial<Plotly.Layout> | undefined = useMemo(() => {
-    // Wait until yAxisRanges are available for each signal (to avoid jumping at load)
     if (signals.length !== yAxisRanges.length) return undefined;
     if (yAxisRanges.some((range) => range === undefined)) return undefined;
 
@@ -419,9 +399,8 @@ const Plot: React.FC<PlotProps> = ({
             : undefined
         }
         values={
-          selectedChannel !== undefined &&
-          throttledValues.length > selectedChannel
-            ? throttledValues[selectedChannel]
+          selectedChannel !== undefined && values.length > selectedChannel
+            ? values[selectedChannel]
             : undefined
         }
         scaling={

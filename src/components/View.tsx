@@ -19,7 +19,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Monitor } from "lucide-react";
 import { EDFReader } from "@/lib/edf/edfreader";
-import Plot from "@/components/plot/plot";
+import Plot from "@/components/plot/Plot";
 import FullPageSpinner from "@/components/FullPageSpinner";
 import clsx from "clsx";
 import type { EDFSignal } from "@/lib/edf/edftypes";

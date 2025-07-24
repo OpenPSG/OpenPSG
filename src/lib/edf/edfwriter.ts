@@ -16,162 +16,127 @@
 import type { EDFHeader, EDFSignal, EDFAnnotation } from "./edftypes";
 import { format } from "date-fns";
 
+const ANNOTATION_RECORD_LENGTH = 64; // Number of samples for annotation signal (128 bytes)
+
 export class EDFWriter {
   private textEncoder = new TextEncoder();
-  private header: EDFHeader;
-  private values: number[][];
-  private annotations?: EDFAnnotation[];
+  private stream:
+    | WritableStreamDefaultWriter<Uint8Array>
+    | FileSystemWritableFileStream;
+  private header?: EDFHeader;
+  private headerWritten = false;
+
+  private annSignalIndex = -1;
+  private bytesPerRecord = 0;
+  private currentRecord = 0;
+  private recordsWritten = 0;
 
   constructor(
-    header: EDFHeader,
-    values: number[][],
-    annotations?: EDFAnnotation[],
+    stream:
+      | WritableStreamDefaultWriter<Uint8Array>
+      | FileSystemWritableFileStream,
   ) {
-    this.header = header;
-    this.values = values;
-    this.annotations = annotations;
-    this.configureAnnotationSignal();
+    this.stream = stream;
   }
 
-  write(): ArrayBuffer {
-    const { header, values } = this;
-    const signalCount = header.signalCount;
-    const records = header.dataRecords;
-
-    if (values.length !== signalCount) {
-      throw new Error("Too few signal values provided");
+  async writeHeader(header: EDFHeader): Promise<void> {
+    if (this.headerWritten) {
+      throw new Error("Header has already been written");
     }
 
-    for (let i = 0; i < signalCount; i++) {
-      const signal = header.signals[i];
-      const expectedSamples = signal.samplesPerRecord * records;
-      const currentSamples = values[i].length;
+    // Clone the header to avoid mutating the original
+    this.header = {
+      ...header,
+      signals: [...header.signals.map((s) => ({ ...s }))],
+    };
 
-      if (currentSamples < expectedSamples) {
-        const padAmount = expectedSamples - currentSamples;
-        values[i] = values[i].concat(Array(padAmount).fill(0));
-      }
+    this.configureAnnotationSignal();
+    this.calculateBytesPerRecord();
+
+    const headerBytes = this.textEncoder.encode(this.buildHeader());
+    await this.stream.write(headerBytes);
+    this.headerWritten = true;
+  }
+
+  async writeRecord(
+    values: number[][],
+    annotations?: EDFAnnotation[],
+  ): Promise<void> {
+    if (!this.headerWritten || !this.header) {
+      throw new Error("Header must be written before writing records");
     }
 
-    let bytesPerRecord = 0;
-    for (const signal of header.signals) {
-      bytesPerRecord += signal.samplesPerRecord * 2;
+    const { signals } = this.header;
+
+    // 👇 Automatically pad missing annotation signal if needed
+    if (values.length === signals.length - 1 && this.annSignalIndex !== -1) {
+      values = [...values];
+      values.splice(this.annSignalIndex, 0, []);
     }
 
-    if (bytesPerRecord > 61440) {
-      // Use a smaller number of samples per record to avoid exceeding the limit.
-      console.error(
-        `Each data record is ${bytesPerRecord} bytes, exceeding the recommended maximum of 61440 bytes (EDF spec).`,
-      );
+    if (values.length !== signals.length) {
+      throw new Error("Signal count mismatch in writeRecord()");
     }
 
-    const headerString = this.buildHeader();
-    const headerBytes = this.textEncoder.encode(headerString);
-    const dataBytes: number[] = [];
+    const chunk = new Uint8Array(this.bytesPerRecord);
+    let offset = 0;
 
-    const annSignalIndex = header.signals.findIndex((sig) =>
-      sig.label.includes("EDF Annotations"),
-    );
-    const hasAnnotations = annSignalIndex !== -1;
+    for (let s = 0; s < signals.length; s++) {
+      const signal = signals[s];
+      const samples = signal.samplesPerRecord;
+      const data = values[s];
 
-    for (let recordNumber = 0; recordNumber < records; recordNumber++) {
-      for (let s = 0; s < signalCount; s++) {
-        const signal = header.signals[s];
-        const start = recordNumber * signal.samplesPerRecord;
-        const end = start + signal.samplesPerRecord;
+      if (s === this.annSignalIndex) {
+        const annText = this.generateAnnotationBlock(
+          this.currentRecord,
+          annotations,
+        );
+        const encodedAnn = this.encodeAnnotationSignal(annText, samples * 2);
+        chunk.set(encodedAnn, offset);
+        offset += encodedAnn.length;
+      } else {
+        if (data.length !== samples) {
+          throw new Error(`Signal ${s} must have ${samples} samples`);
+        }
 
-        if (hasAnnotations && s === annSignalIndex) {
-          const annText = this.generateAnnotationBlock(recordNumber);
-          const encodedAnn = this.encodeAnnotationSignal(
-            annText,
-            signal.samplesPerRecord * 2,
-          );
-          dataBytes.push(...encodedAnn);
-        } else {
-          for (const sample of values[s].slice(start, end)) {
-            const raw = this.physicalToDigital(sample, signal);
-            dataBytes.push(raw & 0xff, (raw >> 8) & 0xff);
-          }
+        for (const sample of data) {
+          const raw = this.physicalToDigital(sample, signal);
+          chunk[offset++] = raw & 0xff;
+          chunk[offset++] = (raw >> 8) & 0xff;
         }
       }
     }
 
-    const fullBuffer = new Uint8Array(headerBytes.length + dataBytes.length);
-    fullBuffer.set(headerBytes);
-    fullBuffer.set(dataBytes, headerBytes.length);
-
-    return fullBuffer.buffer;
+    await this.stream.write(chunk);
+    this.currentRecord += 1;
+    this.recordsWritten += 1;
   }
 
-  // Constructs an EDF+ patient ID string based on the provided parameters.
-  static patientId({
-    hospitalCode,
-    sex,
-    birthdate,
-    name,
-  }: {
-    hospitalCode?: string;
-    sex?: "M" | "F";
-    birthdate?: Date;
-    name?: string;
-  }): string {
-    const formatDate = (date: Date): string =>
-      `${String(date.getDate()).padStart(2, "0")}-${date
-        .toLocaleString("en-US", {
-          month: "short",
-        })
-        .toUpperCase()}-${date.getFullYear()}`;
+  async close(): Promise<void> {
+    if (!this.header) throw new Error("header not set");
 
-    const safe = (val?: string): string =>
-      val ? val.replace(/\s+/g, "_") : "X";
+    if ("seek" in this.stream && typeof this.stream.seek === "function") {
+      // Update dataRecords in header
+      this.header.dataRecords = this.recordsWritten;
 
-    return [
-      safe(hospitalCode),
-      sex ?? "X",
-      birthdate ? formatDate(birthdate) : "X",
-      safe(name),
-    ].join(" ");
-  }
+      // Rebuild and write header again
+      const updatedHeaderBytes = this.textEncoder.encode(this.buildHeader());
+      await this.stream.seek(0);
+      await this.stream.write(updatedHeaderBytes);
+    }
 
-  // Construct an EDF+ recording ID string based on the provided parameters.
-  static recordingId({
-    startDate,
-    studyCode,
-    technicianCode,
-    equipmentCode,
-  }: {
-    startDate?: Date;
-    studyCode?: string;
-    technicianCode?: string;
-    equipmentCode?: string;
-  }): string {
-    const formatDate = (date: Date): string =>
-      `${String(date.getDate()).padStart(2, "0")}-${date
-        .toLocaleString("en-US", {
-          month: "short",
-        })
-        .toUpperCase()}-${date.getFullYear()}`;
-
-    const safe = (val?: string): string =>
-      val ? val.replace(/\s+/g, "_") : "X";
-
-    return [
-      "Startdate",
-      startDate ? formatDate(startDate) : "X",
-      safe(studyCode),
-      safe(technicianCode),
-      safe(equipmentCode),
-    ].join(" ");
+    await this.stream.close();
   }
 
   private configureAnnotationSignal(): void {
-    if (!this.annotations || this.annotations.length === 0) return;
+    if (!this.header)
+      throw new Error("Header must be set before configuration");
 
-    let annotationIndex = this.header.signals.findIndex((sig) =>
+    let index = this.header.signals.findIndex((sig) =>
       sig.label.includes("EDF Annotations"),
     );
 
-    if (annotationIndex === -1) {
+    if (index === -1) {
       const annotationSignal: EDFSignal = {
         label: "EDF Annotations",
         transducerType: "",
@@ -181,68 +146,82 @@ export class EDFWriter {
         digitalMin: -32768,
         digitalMax: 32767,
         prefiltering: "",
-        samplesPerRecord: 0,
+        samplesPerRecord: ANNOTATION_RECORD_LENGTH,
       };
 
       this.header.signals.push(annotationSignal);
       this.header.signalCount += 1;
       this.header.headerBytes = 256 + 256 * this.header.signalCount;
-
-      annotationIndex = this.header.signals.length - 1;
+      index = this.header.signals.length - 1;
     }
 
-    const samplesPerRecord = this.calculateMinimumAnnotationSamplesPerRecord(
-      this.annotations,
-    );
-    this.header.signals[annotationIndex].samplesPerRecord = samplesPerRecord;
-
-    const totalSamples = samplesPerRecord * this.header.dataRecords;
-
-    while (this.values.length <= annotationIndex) {
-      this.values.push([]);
-    }
-
-    const signal = this.values[annotationIndex];
-    if (signal.length === 0) {
-      this.values[annotationIndex] = Array(totalSamples).fill(0);
-    } else if (signal.length < totalSamples) {
-      this.values[annotationIndex] = signal.concat(
-        Array(totalSamples - signal.length).fill(0),
-      );
-    } else if (signal.length > totalSamples) {
-      throw new Error(
-        "Annotation values too long for configured samplesPerRecord",
-      );
-    }
+    // The user has already supplied an annotation signal.
+    this.annSignalIndex = index;
   }
 
-  private calculateMinimumAnnotationSamplesPerRecord(
-    annotations: EDFAnnotation[],
-  ): number {
-    if (!annotations.length) return 1;
+  private calculateBytesPerRecord(): void {
+    if (!this.header)
+      throw new Error("Header must be set before calculating bytes");
 
-    let maxBytesPerRecord = 0;
-
-    const recordCount = this.header.dataRecords;
-    for (let record = 0; record < recordCount; record++) {
-      const text = this.generateAnnotationBlock(record);
-      const bytes = new TextEncoder().encode(text);
-      maxBytesPerRecord = Math.max(maxBytesPerRecord, bytes.length);
+    this.bytesPerRecord = 0;
+    for (const signal of this.header.signals) {
+      this.bytesPerRecord += signal.samplesPerRecord * 2;
     }
 
-    return Math.ceil(maxBytesPerRecord / 2);
+    this.annSignalIndex = this.header.signals.findIndex((sig) =>
+      sig.label.includes("EDF Annotations"),
+    );
+  }
+
+  private generateAnnotationBlock(
+    recordNumber: number,
+    annotations?: EDFAnnotation[],
+  ): string {
+    const startTime = recordNumber * (this.header?.recordDuration ?? 1.0);
+    let text = `+${startTime.toFixed(3)}\u0014\u0014\u0000`;
+
+    if (!annotations || annotations.length === 0) return text;
+
+    for (const ann of annotations) {
+      text += `+${ann.onset.toFixed(3)}`;
+      if (ann.duration !== undefined) {
+        text += `\u0015${ann.duration.toFixed(3)}`;
+      }
+      text += `\u0014${ann.annotation}\u0014\u0000`;
+    }
+
+    return text;
+  }
+
+  private encodeAnnotationSignal(text: string, byteLength: number): number[] {
+    const encoded = this.textEncoder.encode(text);
+    const buf = new Uint8Array(byteLength);
+    buf.set(encoded.slice(0, byteLength));
+    return Array.from(buf);
+  }
+
+  private physicalToDigital(value: number, signal: EDFSignal): number {
+    const { digitalMin, digitalMax, physicalMin, physicalMax } = signal;
+    if (physicalMax === physicalMin) return 0;
+
+    const digital = Math.round(
+      ((value - physicalMin) * (digitalMax - digitalMin)) /
+        (physicalMax - physicalMin) +
+        digitalMin,
+    );
+
+    return Math.max(digitalMin, Math.min(digitalMax, digital));
   }
 
   private buildHeader(): string {
-    const { header } = this;
+    const header = this.header!;
     const field = (val: string, length: number): string =>
       val.padEnd(length).substring(0, length);
 
-    const startTime = header.startTime;
-    const dateStr = format(startTime, "dd.MM.yy");
-    const timeStr = format(startTime, "HH.mm.ss");
-
+    const dateStr = format(header.startTime, "dd.MM.yy");
+    const timeStr = format(header.startTime, "HH.mm.ss");
     const headerBytes = 256 + 256 * header.signalCount;
+    const reserved = this.annSignalIndex !== -1 ? "EDF+C" : "";
 
     let text = "";
     text += field(header.version ?? "0", 8);
@@ -251,19 +230,13 @@ export class EDFWriter {
     text += field(dateStr, 8);
     text += field(timeStr, 8);
     text += field(String(headerBytes), 8);
-
-    // Mark the file as EDF+ if it has annotations, otherwise use plain EDF.
-    const hasAnnotations = this.annotations && this.annotations.length > 0;
-    const reserved = hasAnnotations ? "EDF+C" : "";
     text += field(reserved, 44);
-
     text += field(String(header.dataRecords), 8);
     text += field(header.recordDuration.toFixed(6), 8);
     text += field(String(header.signalCount), 4);
 
-    const signals = header.signals;
     const collect = (cb: (s: EDFSignal) => string, len: number) =>
-      signals
+      header.signals
         .map(cb)
         .map((v) => field(v, len))
         .join("");
@@ -282,51 +255,58 @@ export class EDFWriter {
     return text;
   }
 
-  private physicalToDigital(value: number, signal: EDFSignal): number {
-    const { digitalMin, digitalMax, physicalMin, physicalMax } = signal;
-    if (physicalMax === physicalMin) return 0;
+  static patientId({
+    hospitalCode,
+    sex,
+    birthdate,
+    name,
+  }: {
+    hospitalCode?: string;
+    sex?: "M" | "F";
+    birthdate?: Date;
+    name?: string;
+  }): string {
+    const formatDate = (date: Date): string =>
+      `${String(date.getDate()).padStart(2, "0")}-${date
+        .toLocaleString("en-US", { month: "short" })
+        .toUpperCase()}-${date.getFullYear()}`;
 
-    const digital = Math.round(
-      ((value - physicalMin) * (digitalMax - digitalMin)) /
-        (physicalMax - physicalMin) +
-        digitalMin,
-    );
+    const safe = (val?: string): string =>
+      val ? val.replace(/\s+/g, "_") : "X";
 
-    return Math.max(digitalMin, Math.min(digitalMax, digital));
+    return [
+      safe(hospitalCode),
+      sex ?? "X",
+      birthdate ? formatDate(birthdate) : "X",
+      safe(name),
+    ].join(" ");
   }
 
-  private encodeAnnotationSignal(text: string, byteLength: number): number[] {
-    const encoded = new TextEncoder().encode(text);
-    const buf = new Uint8Array(byteLength);
-    buf.set(encoded.slice(0, byteLength));
-    return Array.from(buf);
-  }
+  static recordingId({
+    startDate,
+    studyCode,
+    technicianCode,
+    equipmentCode,
+  }: {
+    startDate?: Date;
+    studyCode?: string;
+    technicianCode?: string;
+    equipmentCode?: string;
+  }): string {
+    const formatDate = (date: Date): string =>
+      `${String(date.getDate()).padStart(2, "0")}-${date
+        .toLocaleString("en-US", { month: "short" })
+        .toUpperCase()}-${date.getFullYear()}`;
 
-  private generateAnnotationBlock(recordNumber: number): string {
-    if (!this.annotations) return "";
+    const safe = (val?: string): string =>
+      val ? val.replace(/\s+/g, "_") : "X";
 
-    const startTime = recordNumber * this.header.recordDuration;
-    const endTime = startTime + this.header.recordDuration;
-
-    // Grab annotations that fall within this record's time window
-    const anns = this.annotations.filter(
-      (a) => a.onset >= startTime && a.onset < endTime,
-    );
-
-    let text = "";
-
-    // Timekeeping TAL (required, even if no annotations)
-    text += `+${startTime.toFixed(3)}\u0014\u0014\u0000`;
-
-    // One valid TAL per annotation
-    for (const ann of anns) {
-      text += `+${ann.onset.toFixed(3)}`;
-      if (ann.duration !== undefined) {
-        text += `\u0015${ann.duration.toFixed(3)}`;
-      }
-      text += `\u0014${ann.annotation}\u0014\u0000`;
-    }
-
-    return text;
+    return [
+      "Startdate",
+      startDate ? formatDate(startDate) : "X",
+      safe(studyCode),
+      safe(technicianCode),
+      safe(equipmentCode),
+    ].join(" ");
   }
 }

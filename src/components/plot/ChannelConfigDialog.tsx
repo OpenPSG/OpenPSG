@@ -23,7 +23,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
 import { Button } from "@/components/ui/button";
-import type { SignalScaling } from "./plot";
+import type { SignalScaling } from "./Plot";
 import { DialogDescription } from "@radix-ui/react-dialog";
 import type { Values } from "@/lib/types";
 import type { EDFSignal } from "@/lib/edf/edftypes";

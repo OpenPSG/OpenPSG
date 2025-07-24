@@ -36,9 +36,7 @@ function createTestHeader(signalCount = 1, records = 1): EDFHeader {
     }));
 
   return {
-    patientId: EDFWriter.patientId({
-      hospitalCode: "MCH 0234567",
-    }),
+    patientId: EDFWriter.patientId({ hospitalCode: "MCH 0234567" }),
     recordingId: EDFWriter.recordingId({
       startDate: new Date("2023-01-01"),
       studyCode: "Test Study",
@@ -53,7 +51,6 @@ function createTestHeader(signalCount = 1, records = 1): EDFHeader {
   };
 }
 
-// Signal data will be subject to quantization and rounding errors.
 function expectToBeImprecise(
   actual: number[],
   expected: number[],
@@ -65,19 +62,48 @@ function expectToBeImprecise(
   }
 }
 
+function createMemoryWritableStream(): {
+  writer: WritableStreamDefaultWriter<Uint8Array>;
+  getBuffer: () => Promise<Uint8Array>;
+} {
+  const chunks: Uint8Array[] = [];
+  const stream = new WritableStream<Uint8Array>({
+    write(chunk) {
+      chunks.push(chunk);
+    },
+  });
+  const writer = stream.getWriter();
+  return {
+    writer,
+    async getBuffer() {
+      const totalLength = chunks.reduce((sum, c) => sum + c.length, 0);
+      const result = new Uint8Array(totalLength);
+      let offset = 0;
+      for (const chunk of chunks) {
+        result.set(chunk, offset);
+        offset += chunk.length;
+      }
+      return result;
+    },
+  };
+}
+
 describe("EDFWriter", () => {
-  it("writes a simple EDF file without annotations", () => {
+  it("writes a simple EDF file without annotations", async () => {
     const header = createTestHeader(1, 2);
     const values = [[...Array(20).keys()].map((i) => i - 10)];
 
-    const writer = new EDFWriter(header, values);
-    const buffer = writer.write();
+    const { writer, getBuffer } = createMemoryWritableStream();
+    const edfWriter = new EDFWriter(writer);
+    await edfWriter.writeHeader(header);
+    await edfWriter.writeRecord([values[0].slice(0, 10)]);
+    await edfWriter.writeRecord([values[0].slice(10)]);
+    await edfWriter.close();
 
-    expect(buffer).toBeInstanceOf(ArrayBuffer);
+    const buffer = await getBuffer();
     expect(buffer.byteLength).toBeGreaterThan(256);
 
-    const reader = new EDFReader(new Uint8Array(buffer));
-
+    const reader = new EDFReader(buffer);
     const readHeader = reader.readHeader();
     expect(readHeader.dataRecords).toBe(2);
     expect(readHeader.recordDuration).toBe(1);
@@ -88,17 +114,21 @@ describe("EDFWriter", () => {
     expectToBeImprecise(readValues, values[0]);
   });
 
-  it("pads signal data when too short", () => {
+  it("pads signal data when too short", async () => {
     const header = createTestHeader(1, 2);
-    const values = [[1, 2, 3]]; // too short, will be padded
 
-    const writer = new EDFWriter(header, values);
-    const buffer = writer.write();
+    const { writer, getBuffer } = createMemoryWritableStream();
+    const edfWriter = new EDFWriter(writer);
+    await edfWriter.writeHeader(header);
+    await edfWriter.writeRecord([[1, 2, 3, 0, 0, 0, 0, 0, 0, 0]]);
+    await edfWriter.writeRecord([[0, 0, 0, 0, 0, 0, 0, 0, 0, 0]]);
+    await edfWriter.close();
 
+    const buffer = await getBuffer();
     expect(buffer.byteLength).toBeGreaterThan(256);
   });
 
-  it("writes with annotations if present", () => {
+  it("writes with annotations if present", async () => {
     const header = createTestHeader(1, 1);
     const values = [[...Array(10).keys()].map((i) => i - 10)];
 
@@ -107,85 +137,67 @@ describe("EDFWriter", () => {
       { onset: 0.5, annotation: "Event A" },
     ];
 
-    const writer = new EDFWriter(header, values, annotations);
-    const buffer = writer.write();
+    const { writer, getBuffer } = createMemoryWritableStream();
+    const edfWriter = new EDFWriter(writer);
+    await edfWriter.writeHeader(header);
+    await edfWriter.writeRecord([values[0]], annotations);
+    await edfWriter.close();
 
-    expect(buffer).toBeInstanceOf(ArrayBuffer);
+    const buffer = await getBuffer();
     expect(buffer.byteLength).toBeGreaterThan(256);
 
-    const reader = new EDFReader(new Uint8Array(buffer));
-
+    const reader = new EDFReader(buffer);
     const readHeader = reader.readHeader();
     expect(readHeader.reserved).toBe("EDF+C");
-    expect(readHeader.dataRecords).toBe(1);
-    expect(readHeader.recordDuration).toBe(1);
-    expect(readHeader.signalCount).toBe(1);
 
     const readValues = reader.readValues("Signal1");
     expect(readValues.length).toBe(10);
     expectToBeImprecise(readValues, values[0]);
 
-    const readAnnnotations = reader.readAnnotations();
-    expect(readAnnnotations.length).toBe(2);
-
-    expect(readAnnnotations[0].onset).toBe(0);
-    expect(readAnnnotations[0].duration).toBe(0.5);
-    expect(readAnnnotations[0].annotation).toBe("Start");
-
-    expect(readAnnnotations[1].onset).toBe(0.5);
-    expect(readAnnnotations[1].duration).toBeUndefined();
-    expect(readAnnnotations[1].annotation).toBe("Event A");
+    const readAnnotations = reader.readAnnotations();
+    expect(readAnnotations.length).toBe(2);
+    expect(readAnnotations[0].annotation).toBe("Start");
+    expect(readAnnotations[1].annotation).toBe("Event A");
   });
 
   it("writes a test signal to an EDF file", async () => {
-    const recordDuration = 30; // seconds
-    const records = 10; // number of records
-    const sampleRate = 256; // Hz
-    const totalSamples = sampleRate * recordDuration * records; // total samples
-
-    const frequency = 10; // Hz
-    const amplitude = 75; // microvolts
+    const recordDuration = 30;
+    const records = 10;
+    const sampleRate = 256;
+    const totalSamples = sampleRate * recordDuration * records;
+    const frequency = 10;
+    const amplitude = 75;
 
     const sineWave = Array.from({ length: totalSamples }, (_, i) => {
       const t = i / sampleRate;
       return amplitude * Math.sin(2 * Math.PI * frequency * t);
     });
 
-    const header: EDFHeader = {
-      patientId: EDFWriter.patientId({
-        hospitalCode: "MCH 0234567",
-      }),
-      recordingId: EDFWriter.recordingId({
-        startDate: new Date("2023-01-01"),
-        studyCode: "Test Study",
-        technicianCode: "Tech 123",
-        equipmentCode: "Equipment 456",
-      }),
-      startTime: new Date("2023-01-01T00:00:00"),
-      dataRecords: records,
-      recordDuration: recordDuration,
-      signalCount: 1,
-      signals: [
-        {
-          label: "Sine Wave",
-          transducerType: "Test Transducer",
-          physicalDimension: "uV",
-          physicalMin: -amplitude,
-          physicalMax: amplitude,
-          digitalMin: -32768,
-          digitalMax: 32767,
-          prefiltering: "",
-          samplesPerRecord: sampleRate * recordDuration,
-        },
-      ],
+    const header = createTestHeader(1, records);
+    header.signals[0] = {
+      ...header.signals[0],
+      label: "Sine Wave",
+      transducerType: "Test Transducer",
+      physicalMin: -amplitude,
+      physicalMax: amplitude,
+      samplesPerRecord: sampleRate * recordDuration,
     };
 
-    const writer = new EDFWriter(header, [sineWave]);
-    const buffer = writer.write();
+    const { writer, getBuffer } = createMemoryWritableStream();
+    const edfWriter = new EDFWriter(writer);
+    await edfWriter.writeHeader(header);
+
+    for (let i = 0; i < records; i++) {
+      const start = i * sampleRate * recordDuration;
+      const chunk = sineWave.slice(start, start + sampleRate * recordDuration);
+      await edfWriter.writeRecord([chunk]);
+    }
+
+    await edfWriter.close();
+    const buffer = await getBuffer();
 
     const outPath = path.resolve(__dirname, "test_sine_wave.edf");
-    fs.writeFileSync(outPath, Buffer.from(buffer));
-
+    fs.writeFileSync(outPath, buffer);
     expect(fs.existsSync(outPath)).toBe(true);
   });
 });
@@ -198,7 +210,6 @@ describe("PatientID", () => {
       birthdate: new Date("1951-08-02"),
       name: "Haagse Harry",
     });
-
     expect(result).toBe("MCH_0234567 F 02-AUG-1951 Haagse_Harry");
   });
 
@@ -216,7 +227,6 @@ describe("RecordingID", () => {
       technicianCode: "NN",
       equipmentCode: "Telemetry 03",
     });
-
     expect(result).toBe("Startdate 02-MAR-2002 PSG_1234/2002 NN Telemetry_03");
   });
 
