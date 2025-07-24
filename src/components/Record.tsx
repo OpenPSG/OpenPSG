@@ -101,7 +101,8 @@ export default function Record() {
       try {
         await edfWriter.writeRecord(resampled);
       } catch (err) {
-        console.error("Error writing EDF record:", err);
+        const errMsg = err instanceof Error ? err.message : String(err);
+        setError("Failed to write EDF record: " + errMsg);
       }
     }, EPOCH_DURATION * 1000);
 
@@ -198,7 +199,13 @@ export default function Record() {
 
   const handleToggleRecording = useCallback(async () => {
     if (recording) {
-      await edfWriter?.close();
+      try {
+        await edfWriter?.close();
+      } catch (err) {
+        const errMsg = err instanceof Error ? err.message : String(err);
+        setError("Failed to close EDF writer: " + errMsg);
+      }
+
       setEdfWriter(null);
       setRecording(false);
 
