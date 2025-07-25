@@ -105,5 +105,7 @@ export const startEDFWriterLoop = ({
     }
   }, EPOCH_DURATION * 1000);
 
-  return () => clearInterval(interval);
+  return () => {
+    clearInterval(interval);
+  };
 };

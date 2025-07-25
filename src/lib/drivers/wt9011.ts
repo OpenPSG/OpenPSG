@@ -135,12 +135,12 @@ export class WT9011Driver implements Driver {
   private service: BluetoothRemoteGATTService;
   private writeChar?: BluetoothRemoteGATTCharacteristic;
   private notifyChar?: BluetoothRemoteGATTCharacteristic;
+  private measurementQueue?: Channel<Measurement>;
 
   private name = "Body";
   private mode: "movement" | "position" | "raw" = "position";
   private sampleRate: number = 10;
 
-  private measurementQueue = new Channel<Measurement>();
   static uuid = "0000ffe5-0000-1000-8000-00805f9a34fb";
 
   configSchema: ConfigField[] = [
@@ -183,6 +183,7 @@ export class WT9011Driver implements Driver {
 
   constructor(service: BluetoothRemoteGATTService) {
     this.service = service;
+    this.measurementQueue = new Channel<Measurement>();
   }
 
   async configure(config: Record<string, ConfigValue>) {
@@ -209,8 +210,13 @@ export class WT9011Driver implements Driver {
   }
 
   async close() {
+    try {
+      await this.notifyChar?.stopNotifications();
+    } catch (err) {
+      console.warn("Failed to stop notifications:", err);
+    }
     this.service.device.gatt?.disconnect();
-    this.measurementQueue.close();
+    this.measurementQueue?.close();
   }
 
   signals(recordDuration: number): EDFSignal[] {
@@ -361,6 +367,10 @@ export class WT9011Driver implements Driver {
   }
 
   async *values(): AsyncIterable<Value[]> {
+    if (!this.measurementQueue) {
+      throw new Error("Measurement queue is not initialized");
+    }
+
     if (this.mode === "movement") {
       for await (const { timestamp, magnitude } of deriveMovement(
         this.measurementQueue,
@@ -456,6 +466,6 @@ export class WT9011Driver implements Driver {
       ],
     };
 
-    this.measurementQueue.push(measurement);
+    this.measurementQueue?.push(measurement);
   }
 }

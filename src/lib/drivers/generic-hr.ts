@@ -31,7 +31,8 @@ export interface Measurement {
 export class GenericHRDriver implements Driver {
   private service: BluetoothRemoteGATTService;
   private notifyChar?: BluetoothRemoteGATTCharacteristic;
-  private measurementQueue = new Channel<Measurement>();
+  private measurementQueue?: Channel<Measurement>;
+
   private hrvEnabled = false;
   private hrvWindow?: number;
 
@@ -56,6 +57,7 @@ export class GenericHRDriver implements Driver {
 
   constructor(service: BluetoothRemoteGATTService) {
     this.service = service;
+    this.measurementQueue = new Channel<Measurement>();
   }
 
   async configure(config: Record<string, ConfigValue>): Promise<void> {
@@ -76,8 +78,13 @@ export class GenericHRDriver implements Driver {
   }
 
   async close(): Promise<void> {
+    try {
+      await this.notifyChar?.stopNotifications();
+    } catch (err) {
+      console.warn("Failed to stop notifications:", err);
+    }
     this.service.device.gatt?.disconnect();
-    this.measurementQueue.close();
+    this.measurementQueue?.close();
   }
 
   signals(recordDuration: number): EDFSignal[] {
@@ -113,6 +120,10 @@ export class GenericHRDriver implements Driver {
   }
 
   async *values(): AsyncIterable<Value[]> {
+    if (!this.measurementQueue) {
+      throw new Error("Measurement queue is not initialized");
+    }
+
     if (!this.hrvEnabled) {
       for await (const measurement of this.measurementQueue) {
         yield [
@@ -185,6 +196,6 @@ export class GenericHRDriver implements Driver {
       ...(rrIntervals && rrIntervals.length > 0 && { rrIntervals }),
     };
 
-    this.measurementQueue.push(measurement);
+    this.measurementQueue?.push(measurement);
   }
 }

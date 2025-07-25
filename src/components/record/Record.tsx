@@ -1,3 +1,18 @@
+/*
+ * Copyright (C) 2025 The OpenPSG Authors
+ *
+ * This file is licensed under the Functional Source License 1.1
+ * with a grant of AGPLv3-or-later effective two years after publication.
+ *
+ * You may not use this file except in compliance with the License.
+ * A copy of the license is available in the root of the repository
+ * and online at: https://fsl.software
+ *
+ * After two years from publication, this file may also be used under
+ * the GNU Affero General Public License, version 3 or (at your option) any
+ * later version. See <https://www.gnu.org/licenses/agpl-3.0.html> for details.
+ */
+
 import { useCallback, useState, useEffect, useRef } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -33,37 +48,34 @@ import { startStreaming, startEDFWriterLoop } from "./utils";
 const VALUE_RETENTION_MS = 5 * 60 * 1000; // 5 minutes
 
 export default function Record() {
-  const [startTime, setStartTime] = useState<Date>(new Date());
-  const [signals, setSignals] = useState<EDFSignal[]>([]);
-  const [recording, setRecording] = useState<boolean>(false);
-  const [configureSensorDialogOpen, setConfigureSensorDialogOpen] =
-    useState(false);
-  const [error, setError] = useState("");
-  const [isConnecting, setIsConnecting] = useState(false);
-  const [activeDriver, setActiveDriver] = useState<Driver | undefined>(
-    undefined,
-  );
-  const [edfWriter, setEdfWriter] = useState<EDFWriter | undefined>(undefined);
-  const bufferGetterRef =
-    useRef<() => Promise<Uint8Array> | undefined>(undefined);
-
-  const sensorDrivers = useRef<Driver[]>([]);
+  const sensorsRef = useRef<Driver[]>([]);
   const wakeLockRef = useRef<WakeLockSentinel | undefined>(undefined);
   const valuesRef = useRef<Values[]>([]);
+  const [configureSensorDialogOpen, setConfigureSensorDialogOpen] =
+    useState(false);
+  const [isConnecting, setIsConnecting] = useState(false);
+  const [error, setError] = useState("");
+  const [recording, setRecording] = useState(false);
+  const [activeSensor, setActiveSensor] = useState<Driver | undefined>(
+    undefined,
+  );
+  const [startTime, setStartTime] = useState<Date>(new Date());
+  const [signals, setSignals] = useState<EDFSignal[]>([]);
+  const [edfWriter, setEdfWriter] = useState<EDFWriter | undefined>(undefined);
 
   // Cleanup drivers/wakelock on unmount
   useEffect(() => {
-    const wakeLock = wakeLockRef.current;
-    const drivers = sensorDrivers.current;
-
     return () => {
-      releaseWakeLock(wakeLock);
+      if (wakeLockRef.current) {
+        releaseWakeLock(wakeLockRef.current);
+      }
 
-      drivers?.forEach((driver) => {
+      sensorsRef.current?.forEach((driver) => {
         driver.close().catch((err) => {
-          console.error("Failed to close driver:", err);
+          console.warn("Failed to close driver:", err);
         });
       });
+      sensorsRef.current = [];
     };
   }, []);
 
@@ -83,16 +95,27 @@ export default function Record() {
       data?: Record<string, ConfigValue>,
       driverOverride?: Driver,
     ) => {
-      const driverToUse = driverOverride ?? activeDriver;
+      const driverToUse = driverOverride ?? activeSensor;
       if (!driverToUse) return;
+
+      setActiveSensor(undefined);
 
       if (!submitted) {
         await driverToUse.close();
         setConfigureSensorDialogOpen(false);
+        sensorsRef.current = sensorsRef.current.filter(
+          (d) => d !== driverToUse,
+        );
         return;
       }
 
-      driverToUse.configure?.(data ?? {});
+      try {
+        driverToUse.configure?.(data ?? {});
+      } catch (err) {
+        setError("Failed to configure sensor: " + (err as Error).message);
+        return;
+      }
+
       const newSignals: EDFSignal[] = driverToUse.signals(EPOCH_DURATION);
       const startIndex = signals.length;
 
@@ -112,7 +135,7 @@ export default function Record() {
         (err) => setError("Failed to read values from sensor: " + err.message),
       );
     },
-    [activeDriver, signals],
+    [activeSensor, signals],
   );
 
   const handleAddSensor = async () => {
@@ -123,8 +146,8 @@ export default function Record() {
       const service = await DriverRegistry.scanForSupportedDevice();
       const driver = DriverRegistry.createDriverForService(service);
 
-      sensorDrivers.current.push(driver);
-      setActiveDriver(driver);
+      sensorsRef.current.push(driver);
+      setActiveSensor(driver);
 
       if (!driver.configSchema || driver.configSchema.length === 0) {
         await handleSensorConfigComplete(true, undefined, driver);
@@ -141,6 +164,8 @@ export default function Record() {
     }
   };
 
+  const bufferGetterRef =
+    useRef<() => Promise<Uint8Array> | undefined>(undefined);
   const handleToggleRecording = useCallback(async () => {
     if (recording) {
       try {
@@ -229,7 +254,7 @@ export default function Record() {
 
       <SensorConfigDialog
         open={configureSensorDialogOpen}
-        activeDriver={activeDriver}
+        activeDriver={activeSensor}
         onComplete={handleSensorConfigComplete}
       />
 

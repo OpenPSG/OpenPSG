@@ -349,6 +349,7 @@ const Plot: React.FC<PlotProps> = ({
           font: {
             size: 10,
           },
+          bgcolor: "rgba(255, 255, 255, 0.7)",
         };
       }),
     };
