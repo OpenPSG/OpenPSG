@@ -23,7 +23,7 @@ import {
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Videotape, Info, Monitor } from "lucide-react";
 import About from "@/components/About";
-import Record from "@/components/Record";
+import Record from "@/components/record/Record";
 import View from "@/components/View";
 
 const TABS = [

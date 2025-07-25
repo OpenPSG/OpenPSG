@@ -50,3 +50,24 @@ export const checkWebBluetoothSupport = () => {
     );
   }
 };
+
+export const acquireWakeLock = async (): Promise<
+  WakeLockSentinel | undefined
+> => {
+  if ("wakeLock" in navigator) {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      return await (navigator as any).wakeLock.request("screen");
+    } catch (err) {
+      console.warn("Failed to acquire wake lock:", err);
+    }
+  }
+};
+
+export const releaseWakeLock = async (lock: WakeLockSentinel | undefined) => {
+  try {
+    await lock?.release();
+  } catch (err) {
+    console.warn("Failed to release wake lock:", err);
+  }
+};

@@ -17,16 +17,18 @@ import type { EDFSignal } from "@/lib/edf/edftypes";
 import type { Values } from "@/lib/types";
 import { DriverRegistry } from "@/lib/drivers/driver-registry";
 import { EPOCH_DURATION } from "@/lib/constants";
-import SensorConfigDialog from "@/components/SensorConfigDialog";
+import SensorConfigDialog from "./SensorConfigDialog";
 import { EDFWriter } from "@/lib/edf/edfwriter";
 import {
+  acquireWakeLock,
+  releaseWakeLock,
   checkWebBluetoothSupport,
   uniqueFilename,
   triggerDownload,
 } from "@/lib/utils";
 import FullPageSpinner from "@/components/FullPageSpinner";
-import { resample } from "@/lib/resampling/resample";
 import { MemoryWritableStream } from "@/lib/stream";
+import { startStreaming, startEDFWriterLoop } from "./utils";
 
 const VALUE_RETENTION_MS = 5 * 60 * 1000; // 5 minutes
 
@@ -55,11 +57,7 @@ export default function Record() {
     const drivers = sensorDrivers.current;
 
     return () => {
-      if (wakeLock) {
-        wakeLock.release().catch((err) => {
-          console.warn("Wake Lock release failed on unmount:", err);
-        });
-      }
+      releaseWakeLock(wakeLock);
 
       drivers?.forEach((driver) => {
         driver.close().catch((err) => {
@@ -69,51 +67,14 @@ export default function Record() {
     };
   }, []);
 
-  // EDF Record writing loop using interval
   useEffect(() => {
     if (!recording || !edfWriter || signals.length === 0) return;
-
-    const interval = setInterval(async () => {
-      if (!edfWriter || !recording || !valuesRef.current.length) return;
-
-      const now = Date.now();
-      const epochMs = EPOCH_DURATION * 1000;
-
-      const samplesPerRecordList = signals.map((s) => s.samplesPerRecord);
-      const currentValues = valuesRef.current;
-
-      const recentValues: Values[] = currentValues.map((v) => {
-        const fromTime = now - epochMs;
-        const timestamps: number[] = [];
-        const vals: number[] = [];
-
-        for (let i = v.timestamps.length - 1; i >= 0; i--) {
-          if (v.timestamps[i] >= fromTime) {
-            timestamps.unshift(v.timestamps[i]);
-            vals.unshift(v.values[i]);
-          } else {
-            break;
-          }
-        }
-
-        return { timestamps, values: vals };
-      });
-
-      const resampled: number[][] = recentValues.map((v, i) => {
-        const samples = samplesPerRecordList[i];
-        const { values: resampledVals } = resample(v, samples);
-        return resampledVals;
-      });
-
-      try {
-        await edfWriter.writeRecord(resampled);
-      } catch (err) {
-        const errMsg = err instanceof Error ? err.message : String(err);
-        setError("Failed to write EDF record: " + errMsg);
-      }
-    }, EPOCH_DURATION * 1000);
-
-    return () => clearInterval(interval);
+    return startEDFWriterLoop({
+      edfWriter,
+      signals,
+      valuesRef,
+      onError: (err) => setError("Failed to write EDF record: " + err.message),
+    });
   }, [edfWriter, recording, signals]);
 
   const handleSensorConfigComplete = useCallback(
@@ -143,37 +104,13 @@ export default function Record() {
       ];
       setConfigureSensorDialogOpen(false);
 
-      (async () => {
-        try {
-          for await (const next of driverToUse.values()) {
-            const updated = valuesRef.current;
-            const now = Date.now();
-
-            for (let i = 0; i < next.length; i++) {
-              const signalIndex = startIndex + i;
-              if (!updated[signalIndex]) {
-                updated[signalIndex] = { timestamps: [], values: [] };
-              }
-
-              updated[signalIndex].timestamps.push(next[i].timestamp);
-              updated[signalIndex].values.push(next[i].value);
-
-              const ts = updated[signalIndex].timestamps;
-              const vs = updated[signalIndex].values;
-
-              while (ts.length > 0 && ts[0] < now - VALUE_RETENTION_MS) {
-                ts.shift();
-                vs.shift();
-              }
-            }
-          }
-        } catch (err) {
-          const errMsg = err instanceof Error ? err.message : String(err);
-          if (!errMsg.includes("closed")) {
-            console.error("Streaming error", err);
-          }
-        }
-      })();
+      startStreaming(
+        driverToUse,
+        startIndex,
+        valuesRef,
+        VALUE_RETENTION_MS,
+        (err) => setError("Failed to read values from sensor: " + err.message),
+      );
     },
     [activeDriver, signals],
   );
@@ -208,36 +145,22 @@ export default function Record() {
     if (recording) {
       try {
         await edfWriter?.close();
-
         if (bufferGetterRef.current) {
           const buffer = await bufferGetterRef.current();
-          if (!buffer) {
-            throw new Error("No buffer available for download.");
-          }
-
+          if (!buffer) throw new Error("No buffer available for download.");
           const blob = new Blob([buffer], { type: "application/octet-stream" });
           triggerDownload(blob, uniqueFilename("edf"));
         } else {
           console.warn("EDF buffer not available for download.");
         }
       } catch (err) {
-        const errMsg = err instanceof Error ? err.message : String(err);
-        setError("Failed to close EDF writer: " + errMsg);
+        setError("Failed to close EDF writer: " + (err as Error).message);
       } finally {
         setEdfWriter(undefined);
         setRecording(false);
+        await releaseWakeLock(wakeLockRef.current);
+        wakeLockRef.current = undefined;
       }
-
-      if (wakeLockRef.current) {
-        try {
-          await wakeLockRef.current.release();
-        } catch (err) {
-          console.warn("Failed to release wake lock:", err);
-        } finally {
-          wakeLockRef.current = undefined;
-        }
-      }
-
       return;
     }
 
@@ -251,10 +174,9 @@ export default function Record() {
       // found a lot of android bugs, and it's a very new API.
       const { writer: writable, getBuffer } = MemoryWritableStream();
       bufferGetterRef.current = getBuffer;
-
       const writer = new EDFWriter(writable);
-
       const now = new Date();
+
       const header = {
         patientId: EDFWriter.patientId({}),
         recordingId: EDFWriter.recordingId({ startDate: now }),
@@ -269,9 +191,8 @@ export default function Record() {
       setEdfWriter(writer);
       setRecording(true);
 
-      if ("wakeLock" in navigator && !wakeLockRef.current) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const lock = await (navigator as any).wakeLock.request("screen");
+      const lock = await acquireWakeLock();
+      if (lock) {
         wakeLockRef.current = lock;
         lock.addEventListener("release", () => {
           wakeLockRef.current = undefined;
@@ -288,11 +209,7 @@ export default function Record() {
   const [revision, setRevision] = useState(0);
   useEffect(() => {
     if (!signals.length) return;
-
-    const interval = setInterval(() => {
-      setRevision((r) => r + 1);
-    }, 1000);
-
+    const interval = setInterval(() => setRevision((r) => r + 1), 1000);
     return () => clearInterval(interval);
   }, [signals]);
 
