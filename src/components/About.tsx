@@ -14,7 +14,7 @@
  */
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Info } from "lucide-react";
+import { Info, Book } from "lucide-react";
 
 const buildVersion = import.meta.env.VITE_BUILD_VERSION;
 
@@ -44,6 +44,17 @@ export default function About() {
         </div>
         <div className="text-center mt-4 text-gray-400 text-xs">
           Version: {buildVersion}
+        </div>
+        <div className="text-center mt-4">
+          <a
+            href="https://docs.openpsg.com"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1 text-blue-600 hover:underline font-medium text-sm"
+          >
+            <Book className="w-4 h-4" />
+            OpenPSG Documentation
+          </a>
         </div>
         <div className="text-center mt-2 space-x-4">
           <a
