@@ -38,6 +38,10 @@ export class GenericHRDriver implements Driver {
 
   static uuid = "0000180d-0000-1000-8000-00805f9b34fb";
 
+  static scanFilters: BluetoothLEScanFilter[] = [
+    { services: [GenericHRDriver.uuid] },
+  ];
+
   configSchema: ConfigField[] = [
     {
       name: "hrv",

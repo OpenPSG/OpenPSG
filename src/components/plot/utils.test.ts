@@ -73,7 +73,7 @@ describe("getTickValsAndText", () => {
     const result = getTickValsAndText(0, 20, mockStartTime);
     expect(result.tickvals.length).toBeGreaterThan(0);
     expect(
-      result.ticktext.every((txt) => /^\d{2}:\d{2}:\d{2}$/.test(txt)),
+      result.ticktext.every((txt) => /^\d{1}:\d{2}:\d{2}$/.test(txt)),
     ).toBe(true);
   });
 

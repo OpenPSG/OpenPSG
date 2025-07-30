@@ -143,6 +143,10 @@ export class WT9011Driver implements Driver {
 
   static uuid = "0000ffe5-0000-1000-8000-00805f9a34fb";
 
+  static scanFilters: BluetoothLEScanFilter[] = [
+    { services: [WT9011Driver.uuid] },
+  ];
+
   configSchema: ConfigField[] = [
     {
       name: "name",

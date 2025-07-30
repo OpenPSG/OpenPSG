@@ -14,28 +14,25 @@
  */
 
 import type { Driver } from "./driver";
-import { WT9011Driver } from "./wt9011";
 import { GenericHRDriver } from "./generic-hr";
+import { WT9011Driver } from "./wt9011";
 
 type DriverConstructor = {
   new (service: BluetoothRemoteGATTService): Driver;
   uuid: string;
-  label?: string;
+  scanFilters: BluetoothLEScanFilter[];
 };
 
-const drivers: DriverConstructor[] = [WT9011Driver, GenericHRDriver];
+const drivers: DriverConstructor[] = [GenericHRDriver, WT9011Driver];
 
 export const DriverRegistry = {
-  getSupportedUUIDs(): string[] {
-    return drivers.map((D) => D.uuid);
-  },
-
   async scanForSupportedDevice(): Promise<BluetoothRemoteGATTService> {
-    const filters = drivers.map((D) => ({
-      services: [D.uuid],
-    }));
+    const filters = drivers.flatMap((D) => D.scanFilters);
 
-    const device = await navigator.bluetooth.requestDevice({ filters });
+    const device = await navigator.bluetooth.requestDevice({
+      filters,
+      optionalServices: drivers.map((D) => D.uuid),
+    });
     if (!device) throw new Error("No device selected");
 
     const server = await device.gatt?.connect();
@@ -55,12 +52,5 @@ export const DriverRegistry = {
     if (!Ctor)
       throw new Error(`No driver registered for UUID: ${service.uuid}`);
     return new Ctor(service);
-  },
-
-  listDrivers(): { uuid: string; label: string }[] {
-    return drivers.map((D) => ({
-      uuid: D.uuid,
-      label: D.label ?? D.name,
-    }));
   },
 };

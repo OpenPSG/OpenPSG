@@ -79,7 +79,10 @@ export const getTickValsAndText = (
     if (relativeT >= start && relativeT <= end) {
       tickvals.push(relativeT);
       const date = new Date(t * 1000);
-      ticktext.push(date.toTimeString().slice(0, 8));
+      const hours = date.getHours();
+      const minutes = String(date.getMinutes()).padStart(2, "0");
+      const seconds = String(date.getSeconds()).padStart(2, "0");
+      ticktext.push(`${hours}:${minutes}:${seconds}`);
     }
   }
 
