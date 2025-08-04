@@ -18,12 +18,12 @@ import { Info, Book } from "lucide-react";
 
 const buildVersion = import.meta.env.VITE_BUILD_VERSION;
 
-export default function About() {
+export default function Help() {
   return (
     <Card className="max-w-lg w-full mx-auto shadow-xl">
       <CardHeader className="flex items-center gap-2">
         <Info className="w-6 h-6" />
-        <CardTitle className="text-xl">About</CardTitle>
+        <CardTitle className="text-xl">Help</CardTitle>
       </CardHeader>
       <CardContent>
         <div className="text-xs text-left text-gray-400">
@@ -53,7 +53,7 @@ export default function About() {
             className="inline-flex items-center gap-1 text-blue-600 hover:underline font-medium text-sm"
           >
             <Book className="w-4 h-4" />
-            OpenPSG Documentation
+            Documentation
           </a>
         </div>
         <div className="text-center mt-2 space-x-4">

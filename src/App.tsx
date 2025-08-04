@@ -22,7 +22,7 @@ import {
 } from "react-router-dom";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Videotape, Info, Monitor } from "lucide-react";
-import About from "@/components/About";
+import Help from "@/components/Help";
 import Record from "@/components/record/Record";
 import View from "@/components/View";
 
@@ -38,8 +38,8 @@ const TABS = [
     icon: <Monitor className="w-4 h-4" />,
   },
   {
-    path: "/about",
-    label: "About",
+    path: "/help",
+    label: "Help",
     icon: <Info className="w-4 h-4" />,
   },
 ];
@@ -104,13 +104,13 @@ export default function App() {
               }
             />
             <Route
-              path="/about"
+              path="/help"
               element={
                 <TabsContent
-                  value="/about"
+                  value="/help"
                   className="flex items-center justify-center w-full h-full"
                 >
-                  <About />
+                  <Help />
                 </TabsContent>
               }
             />
