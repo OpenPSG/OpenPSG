@@ -27,7 +27,7 @@ export default class Channel<T> {
 
     if (this.resolvers.length > 0) {
       const resolve = this.resolvers.shift()!;
-      this.rejecters.shift(); // discard rejecter
+      this.rejecters.shift(); // Discard rejecter
       resolve(item);
     } else {
       this.queue.push(item);
@@ -36,8 +36,9 @@ export default class Channel<T> {
 
   close(error = new Error("Queue closed")) {
     this.error = error;
-    this.controller.abort(); // abort all pending reads
+    this.controller.abort();
 
+    // Reject all pending promises
     for (const reject of this.rejecters) {
       reject(error);
     }
@@ -58,17 +59,19 @@ export default class Channel<T> {
         yield this.queue.shift()!;
       } else {
         const item = await new Promise<T>((resolve, reject) => {
-          const onAbort = () => {
+          const onAbort = () => reject(this.error);
+      
+          signal.addEventListener("abort", onAbort, { once: true });
+
+          this.resolvers.push((value) => {
             signal.removeEventListener("abort", onAbort);
-            this.resolvers = this.resolvers.filter((r) => r !== resolve);
-            this.rejecters = this.rejecters.filter((r) => r !== reject);
-            reject(this.error);
-          };
+            resolve(value);
+          });
 
-          signal.addEventListener("abort", onAbort);
-
-          this.resolvers.push(resolve);
-          this.rejecters.push(reject);
+          this.rejecters.push((err) => {
+            signal.removeEventListener("abort", onAbort);
+            reject(err);
+          });
         });
 
         yield item;
