@@ -15,7 +15,7 @@
 
 import { describe, it, expect } from "vitest";
 import { deriveBodyPosition } from "./body-position";
-import type { Measurement } from "@/lib/drivers/wt9011";
+import type { Measurement } from "@/lib/drivers/witmotion";
 
 // Helper to create a fake stream of measurements
 async function* makeMeasurementStream(measurements: Measurement[]) {

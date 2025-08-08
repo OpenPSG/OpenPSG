@@ -13,7 +13,7 @@
  * later version. See <https://www.gnu.org/licenses/agpl-3.0.html> for details.
  */
 
-import type { Measurement } from "@/lib/drivers/wt9011";
+import type { Measurement } from "@/lib/drivers/witmotion";
 import { IIRFilter } from "@/lib/filters/filter";
 import { calcCoeffs } from "@/lib/filters/cascade";
 

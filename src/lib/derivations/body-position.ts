@@ -15,7 +15,7 @@
 
 import Quaternion from "quaternion";
 import { degToRad, radToDeg, wrapAngle } from "@/lib/trig";
-import type { Measurement } from "@/lib/drivers/wt9011";
+import type { Measurement } from "@/lib/drivers/witmotion";
 
 const bodyRoll = (q: Quaternion): number => {
   // Rotate gravity vector [0, 0, 1] into body frame

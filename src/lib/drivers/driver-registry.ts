@@ -15,7 +15,7 @@
 
 import type { Driver } from "./driver";
 import { GenericHRDriver } from "./generic-hr";
-import { WT9011Driver } from "./wt9011";
+import { WitMotionIMUDriver } from "./witmotion";
 
 type DriverConstructor = {
   new (service: BluetoothRemoteGATTService): Driver;
@@ -23,7 +23,7 @@ type DriverConstructor = {
   scanFilters: BluetoothLEScanFilter[];
 };
 
-const drivers: DriverConstructor[] = [GenericHRDriver, WT9011Driver];
+const drivers: DriverConstructor[] = [GenericHRDriver, WitMotionIMUDriver];
 
 export const DriverRegistry = {
   async scanForSupportedDevice(): Promise<BluetoothRemoteGATTService> {

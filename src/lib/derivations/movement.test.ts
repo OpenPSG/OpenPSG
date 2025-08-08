@@ -15,7 +15,7 @@
 
 import { describe, it, expect } from "vitest";
 import { deriveMovement } from "./movement";
-import type { Measurement } from "@/lib/drivers/wt9011";
+import type { Measurement } from "@/lib/drivers/witmotion";
 
 // Helper to collect async iterable output into an array
 async function collectAsyncIterable<T>(

@@ -60,7 +60,7 @@ export default class Channel<T> {
       } else {
         const item = await new Promise<T>((resolve, reject) => {
           const onAbort = () => reject(this.error);
-      
+
           signal.addEventListener("abort", onAbort, { once: true });
 
           this.resolvers.push((value) => {
