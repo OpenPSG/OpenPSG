@@ -27,7 +27,6 @@ import type { Values } from "@/lib/types";
 
 export default function View() {
   const [error, setError] = useState<string | undefined>(undefined);
-  const [startTime, setStartTime] = useState<Date>(new Date());
   const [signals, setSignals] = useState<EDFSignal[] | undefined>(undefined);
   const [values, setValues] = useState<Values[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
@@ -59,13 +58,11 @@ export default function View() {
           };
         });
 
-        setStartTime(header.startTime);
         setSignals(header.signals);
         setValues(values);
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : String(err);
         setError(`Failed to load the uploaded data: ${message}`);
-        setStartTime(new Date());
         setSignals(undefined);
         setValues([]);
       } finally {
@@ -104,7 +101,7 @@ export default function View() {
             </CardContent>
           </>
         ) : (
-          <Plot startTime={startTime} signals={signals} values={values} />
+          <Plot signals={signals} values={values} />
         )}
       </Card>
     </>

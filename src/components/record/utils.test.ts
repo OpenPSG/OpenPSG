@@ -26,7 +26,7 @@ import {
 import { startEDFWriterLoop, startStreaming } from "./utils";
 import type { EDFSignal } from "@/lib/edf/edftypes";
 import type { Value, Values } from "@/lib/types";
-import { EPOCH_DURATION } from "@/lib/constants";
+import { EPOCH_DURATION_MS } from "@/lib/constants";
 import type { Driver } from "@/lib/drivers/driver";
 
 function createMockDriver(values: Value[][]): Driver {
@@ -159,7 +159,7 @@ describe("startEDFWriterLoop", () => {
       onError,
     });
 
-    vi.advanceTimersByTime(EPOCH_DURATION * 1000 + 5);
+    vi.advanceTimersByTime(EPOCH_DURATION_MS + 5);
     await Promise.resolve();
 
     expect(writeRecord).toHaveBeenCalledTimes(1);
@@ -176,7 +176,7 @@ describe("startEDFWriterLoop", () => {
       onError,
     });
 
-    vi.advanceTimersByTime(EPOCH_DURATION * 1000 + 5);
+    vi.advanceTimersByTime(EPOCH_DURATION_MS + 5);
     await Promise.resolve();
 
     expect(onError).toHaveBeenCalled();
@@ -192,7 +192,7 @@ describe("startEDFWriterLoop", () => {
     });
 
     stop();
-    vi.advanceTimersByTime(EPOCH_DURATION * 1000 * 2);
+    vi.advanceTimersByTime(EPOCH_DURATION_MS * 2);
 
     expect(writeRecord).toHaveBeenCalledTimes(0);
   });
@@ -212,7 +212,7 @@ describe("startEDFWriterLoop", () => {
       onError,
     });
 
-    vi.advanceTimersByTime(EPOCH_DURATION * 1000 + 5);
+    vi.advanceTimersByTime(EPOCH_DURATION_MS + 5);
     await Promise.resolve();
 
     expect(writeRecord).toHaveBeenCalledTimes(1);

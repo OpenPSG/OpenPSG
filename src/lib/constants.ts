@@ -13,7 +13,7 @@
  * later version. See <https://www.gnu.org/licenses/agpl-3.0.html> for details.
  */
 
-export const EPOCH_DURATION = 30; // seconds
+export const EPOCH_DURATION_MS = 30000; // milliseconds
 
 export const INT16_MAX = 32767;
 export const INT16_MIN = -32768;

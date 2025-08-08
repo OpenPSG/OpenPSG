@@ -15,7 +15,7 @@
 
 import { describe, it, expect } from "vitest";
 import { parseRelayoutEvent, getTickValsAndText } from "./utils";
-import { EPOCH_DURATION } from "@/lib/constants";
+import { EPOCH_DURATION_MS } from "@/lib/constants";
 
 describe("parseRelayoutEvent", () => {
   it("returns range from xaxis.range", () => {
@@ -51,7 +51,7 @@ describe("parseRelayoutEvent", () => {
       },
       100,
     );
-    expect(result).toEqual([0, EPOCH_DURATION]);
+    expect(result).toEqual([0, EPOCH_DURATION_MS]);
   });
 
   it("returns null for invalid input", () => {
@@ -61,35 +61,33 @@ describe("parseRelayoutEvent", () => {
 });
 
 describe("getTickValsAndText", () => {
-  const mockStartTime = new Date("2023-01-01T00:00:00Z");
-
   it("returns empty arrays when duration is zero or negative", () => {
-    const result = getTickValsAndText(10, 10, mockStartTime);
+    const result = getTickValsAndText(10_000, 10_000);
     expect(result.tickvals).toEqual([]);
     expect(result.ticktext).toEqual([]);
   });
 
   it("returns tickvals and formatted ticktext for short duration", () => {
-    const result = getTickValsAndText(0, 20, mockStartTime);
+    const result = getTickValsAndText(0, 20_000);
     expect(result.tickvals.length).toBeGreaterThan(0);
     expect(
-      result.ticktext.every((txt) => /^\d{1}:\d{2}:\d{2}$/.test(txt)),
+      result.ticktext.every((txt) => /^\d{2}:\d{2}:\d{2}$/.test(txt)),
     ).toBe(true);
   });
 
   it("uses correct interval for various durations", () => {
     const intervals = [
-      { duration: 50, expectedInterval: 5 },
-      { duration: 200, expectedInterval: 30 },
-      { duration: 1000, expectedInterval: 60 },
-      { duration: 4000, expectedInterval: 300 },
-      { duration: 10000, expectedInterval: 600 },
-      { duration: 30000, expectedInterval: 1800 },
-      { duration: 50000, expectedInterval: 3600 },
+      { duration: 50_000, expectedInterval: 5_000 },
+      { duration: 200_000, expectedInterval: 30_000 },
+      { duration: 1000_000, expectedInterval: 60_000 },
+      { duration: 4000_000, expectedInterval: 300_000 },
+      { duration: 10000_000, expectedInterval: 600_000 },
+      { duration: 30000_000, expectedInterval: 1800_000 },
+      { duration: 50000_000, expectedInterval: 3600_000 },
     ];
 
     for (const { duration, expectedInterval } of intervals) {
-      const result = getTickValsAndText(0, duration, mockStartTime);
+      const result = getTickValsAndText(0, duration);
       const diffs = result.tickvals
         .slice(1)
         .map((v, i) => v - result.tickvals[i]);
@@ -99,7 +97,9 @@ describe("getTickValsAndText", () => {
   });
 
   it("only includes ticks within start and end", () => {
-    const result = getTickValsAndText(100, 160, mockStartTime);
-    expect(result.tickvals.every((t) => t >= 100 && t <= 160)).toBe(true);
+    const result = getTickValsAndText(100_000, 160_000);
+    expect(result.tickvals.every((t) => t >= 100_000 && t <= 160_000)).toBe(
+      true,
+    );
   });
 });

@@ -13,7 +13,7 @@
  * later version. See <https://www.gnu.org/licenses/agpl-3.0.html> for details.
  */
 
-import { EPOCH_DURATION } from "@/lib/constants";
+import { EPOCH_DURATION_MS } from "@/lib/constants";
 
 export const parseRelayoutEvent = (
   e: Partial<Plotly.Layout>,
@@ -36,54 +36,48 @@ export const parseRelayoutEvent = (
       : [newStart, newEnd];
   }
 
-  if (e["xaxis.autorange"]) return [0, EPOCH_DURATION];
+  if (e["xaxis.autorange"]) return [0, EPOCH_DURATION_MS];
   return null;
 };
 
 export const getTickValsAndText = (
   start: number,
   end: number,
-  startTime: Date,
 ): { tickvals: number[]; ticktext: string[] } => {
-  const duration = end - start;
+  const duration = (end - start) / 1000; // In seconds
   if (duration <= 0) return { tickvals: [], ticktext: [] };
 
   let interval: number;
   if (duration <= 10) {
-    interval = 1;
+    interval = 1_000;
   } else if (duration <= 60) {
-    interval = 5;
+    interval = 5_000;
   } else if (duration <= 300) {
-    interval = 30;
+    interval = 30_000;
   } else if (duration <= 1800) {
-    interval = 60;
+    interval = 60_000;
   } else if (duration <= 7200) {
-    interval = 300;
+    interval = 300_000;
   } else if (duration <= 14400) {
-    interval = 600;
+    interval = 600_000;
   } else if (duration <= 43200) {
-    interval = 1800;
+    interval = 1800_000;
   } else {
-    interval = 3600;
+    interval = 3600_000;
   }
 
   const tickvals: number[] = [];
   const ticktext: string[] = [];
 
-  const globalStartSec = Math.floor(startTime.getTime() / 1000);
-  const alignedFirstTickSec =
-    Math.ceil((globalStartSec + start) / interval) * interval;
+  const alignedFirstTick = Math.ceil((start / interval) * interval);
 
-  for (let t = alignedFirstTickSec; t <= globalStartSec + end; t += interval) {
-    const relativeT = t - globalStartSec;
-    if (relativeT >= start && relativeT <= end) {
-      tickvals.push(relativeT);
-      const date = new Date(t * 1000);
-      const hours = date.getHours();
-      const minutes = String(date.getMinutes()).padStart(2, "0");
-      const seconds = String(date.getSeconds()).padStart(2, "0");
-      ticktext.push(`${hours}:${minutes}:${seconds}`);
-    }
+  for (let t = alignedFirstTick; t <= end; t += interval) {
+    tickvals.push(t);
+    const date = new Date(t);
+    const hours = String(date.getHours()).padStart(2, "0");
+    const minutes = String(date.getMinutes()).padStart(2, "0");
+    const seconds = String(date.getSeconds()).padStart(2, "0");
+    ticktext.push(`${hours}:${minutes}:${seconds}`);
   }
 
   return { tickvals, ticktext };

@@ -31,7 +31,7 @@ import type { Driver, ConfigValue } from "@/lib/drivers/driver";
 import type { EDFSignal } from "@/lib/edf/edftypes";
 import type { Values } from "@/lib/types";
 import { DriverRegistry } from "@/lib/drivers/driver-registry";
-import { EPOCH_DURATION } from "@/lib/constants";
+import { EPOCH_DURATION_MS } from "@/lib/constants";
 import SensorConfigDialog from "./SensorConfigDialog";
 import { EDFWriter } from "@/lib/edf/edfwriter";
 import {
@@ -59,7 +59,6 @@ export default function Record() {
   const [activeSensor, setActiveSensor] = useState<Driver | undefined>(
     undefined,
   );
-  const [startTime, setStartTime] = useState<Date>(new Date());
   const [signals, setSignals] = useState<EDFSignal[]>([]);
   const [edfWriter, setEdfWriter] = useState<EDFWriter | undefined>(undefined);
 
@@ -116,11 +115,12 @@ export default function Record() {
         return;
       }
 
-      const newSignals: EDFSignal[] = driverToUse.signals(EPOCH_DURATION);
+      const newSignals: EDFSignal[] = driverToUse.signals(
+        EPOCH_DURATION_MS / 1000,
+      );
       const startIndex = signals.length;
 
       setSignals((prev) => [...prev, ...newSignals]);
-      setStartTime((prev) => prev ?? new Date());
       valuesRef.current = [
         ...valuesRef.current,
         ...newSignals.map(() => ({ timestamps: [], values: [] })),
@@ -207,7 +207,7 @@ export default function Record() {
         recordingId: EDFWriter.recordingId({ startDate: now }),
         startTime: now,
         dataRecords: -1,
-        recordDuration: EPOCH_DURATION,
+        recordDuration: EPOCH_DURATION_MS / 1000,
         signalCount: signals.length,
         signals,
       };
@@ -287,7 +287,6 @@ export default function Record() {
         </div>
 
         <Plot
-          startTime={startTime}
           signals={signals}
           values={valuesRef.current}
           followMode={true}

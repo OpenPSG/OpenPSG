@@ -18,7 +18,7 @@ import type { EDFSignal } from "@/lib/edf/edftypes";
 import { EDFWriter } from "@/lib/edf/edfwriter";
 import type { Values } from "@/lib/types";
 import { resample } from "@/lib/resampling/resample";
-import { EPOCH_DURATION } from "@/lib/constants";
+import { EPOCH_DURATION_MS } from "@/lib/constants";
 
 export const startStreaming = (
   driver: Driver,
@@ -72,7 +72,7 @@ export const startEDFWriterLoop = ({
   const interval = setInterval(async () => {
     try {
       const now = Date.now();
-      const epochMs = EPOCH_DURATION * 1000;
+      const epochMs = EPOCH_DURATION_MS;
 
       const samplesPerRecordList = signals.map((s) => s.samplesPerRecord);
       const recentValues: Values[] = valuesRef.current.map((v) => {
@@ -103,7 +103,7 @@ export const startEDFWriterLoop = ({
     } catch (err) {
       onError(err instanceof Error ? err : new Error(String(err)));
     }
-  }, EPOCH_DURATION * 1000);
+  }, EPOCH_DURATION_MS);
 
   return () => {
     clearInterval(interval);

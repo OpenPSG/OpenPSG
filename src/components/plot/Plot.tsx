@@ -22,24 +22,41 @@ import React, {
 } from "react";
 import PlotlyPlot from "react-plotly.js";
 import "./plot.css";
-import { resample } from "@/lib/resampling/resample";
+import { lttb } from "@/lib/resampling/lttb";
 import ChannelConfigDialog from "./ChannelConfigDialog";
 import { parseRelayoutEvent, getTickValsAndText } from "./utils";
 import type { EDFSignal } from "@/lib/edf/edftypes";
-import { EPOCH_DURATION } from "@/lib/constants";
+import { EPOCH_DURATION_MS } from "@/lib/constants";
 import type { Values } from "@/lib/types";
 import throttle from "lodash/throttle";
+
+const binarySearch = (arr: number[], target: number): number => {
+  let left = 0,
+    right = arr.length;
+  while (left < right) {
+    const mid = (left + right) >> 1;
+    if (arr[mid] <= target) {
+      left = mid + 1;
+    } else {
+      right = mid;
+    }
+  }
+  return left - 1;
+};
 
 // How frequently to respond to x-axis range changes
 const XRANGE_UPDATE_INTERVAL = 100; // ms
 
-const useXRange = (totalDuration: number) => {
+const useXRange = (startTime: number, totalDuration: number) => {
   // We need two separate state variables for the x-axis range otherwise
   // bidirectional updates can cause issues
-  const [xRange, setXRange] = useState<[number, number]>([0, EPOCH_DURATION]);
+  const [xRange, setXRange] = useState<[number, number]>([
+    startTime,
+    startTime + EPOCH_DURATION_MS,
+  ]);
   const [plotlyXRange, setPlotlyXRange] = useState<[number, number]>([
-    0,
-    EPOCH_DURATION,
+    startTime,
+    startTime + EPOCH_DURATION_MS,
   ]);
 
   useEffect(() => {
@@ -49,10 +66,10 @@ const useXRange = (totalDuration: number) => {
   const throttledSetXRange = useMemo(() => {
     const throttled = throttle(
       (start: number, end: number, noclamp: boolean) => {
-        const newStart = Math.max(0, start);
+        const newStart = Math.max(startTime, start);
         let newEnd = end;
         if (!noclamp) {
-          newEnd = Math.min(totalDuration, end);
+          newEnd = Math.min(startTime + totalDuration, end);
         }
         if (newEnd - newStart < 1) {
           newEnd = newStart + 1;
@@ -63,7 +80,7 @@ const useXRange = (totalDuration: number) => {
       XRANGE_UPDATE_INTERVAL,
     );
     return throttled;
-  }, [totalDuration]);
+  }, [startTime, totalDuration]);
 
   return { xRange, plotlyXRange, throttledSetXRange };
 };
@@ -71,6 +88,7 @@ const useXRange = (totalDuration: number) => {
 const useKeyboardNavigation = (
   ref: React.RefObject<HTMLDivElement | null>,
   xRange: [number, number],
+  startTime: number,
   totalDuration: number,
   setXRange: (start: number, end: number, noclamp: boolean) => void,
   followMode?: boolean,
@@ -88,7 +106,7 @@ const useKeyboardNavigation = (
         if (end >= totalDuration) return;
         setXRange(start + moveBy, end + moveBy, false);
       } else if (e.key === "ArrowLeft") {
-        if (start <= 0) return;
+        if (start <= startTime) return;
         setXRange(start - moveBy, end - moveBy, false);
       }
     };
@@ -97,7 +115,7 @@ const useKeyboardNavigation = (
     return () => {
       el.removeEventListener("keydown", handleKeyDown);
     };
-  }, [xRange, totalDuration, setXRange, followMode, ref]);
+  }, [xRange, startTime, totalDuration, setXRange, followMode, ref]);
 };
 
 export interface SignalScaling {
@@ -109,7 +127,6 @@ export interface SignalScaling {
 }
 
 export interface PlotProps {
-  startTime: Date;
   signals: EDFSignal[];
   values: Values[];
   followMode?: boolean;
@@ -117,7 +134,6 @@ export interface PlotProps {
 }
 
 const Plot: React.FC<PlotProps> = ({
-  startTime,
   signals,
   values,
   followMode,
@@ -137,6 +153,19 @@ const Plot: React.FC<PlotProps> = ({
     }
   }, [modalOpen, followMode]);
 
+  const startTime = useMemo(() => {
+    void revision;
+
+    if (!signals || signals.length === 0) return 0;
+    if (values.length === 0) return 0;
+
+    return values.reduce((min, series) => {
+      if (series.timestamps.length === 0) return min;
+      const firstTimestamp = series.timestamps[0];
+      return Math.min(min, firstTimestamp);
+    }, Infinity);
+  }, [signals, values, revision]);
+
   const totalDuration = useMemo(() => {
     void revision;
 
@@ -146,20 +175,23 @@ const Plot: React.FC<PlotProps> = ({
     const maxDuration = values.reduce((max, series) => {
       if (series.timestamps.length === 0) return max;
       const lastTimestamp = series.timestamps[series.timestamps.length - 1];
-      return Math.max(max, lastTimestamp - startTime.getTime());
+      return Math.max(max, lastTimestamp);
     }, 0);
-    return Math.max(maxDuration, EPOCH_DURATION) / 1000;
-  }, [signals, startTime, values, revision]);
+    return Math.max(maxDuration, EPOCH_DURATION_MS);
+  }, [signals, values, revision]);
 
-  const { xRange, plotlyXRange, throttledSetXRange } = useXRange(totalDuration);
+  const { xRange, plotlyXRange, throttledSetXRange } = useXRange(
+    startTime,
+    totalDuration,
+  );
 
   useEffect(() => {
     if (!followMode) return;
     const end = xRange[1];
     if (totalDuration > end) {
       const nextStart =
-        Math.floor(totalDuration / EPOCH_DURATION) * EPOCH_DURATION;
-      const nextEnd = nextStart + EPOCH_DURATION;
+        Math.floor(totalDuration / EPOCH_DURATION_MS) * EPOCH_DURATION_MS;
+      const nextEnd = nextStart + EPOCH_DURATION_MS;
       throttledSetXRange(nextStart, nextEnd, true);
     }
   }, [totalDuration, followMode, xRange, throttledSetXRange]);
@@ -167,6 +199,7 @@ const Plot: React.FC<PlotProps> = ({
   useKeyboardNavigation(
     plotWrapperRef,
     xRange,
+    startTime,
     totalDuration,
     throttledSetXRange,
     followMode,
@@ -174,8 +207,8 @@ const Plot: React.FC<PlotProps> = ({
 
   const { tickvals, ticktext } = useMemo(() => {
     const [start, end] = xRange;
-    return getTickValsAndText(start, end, startTime);
-  }, [xRange, startTime]);
+    return getTickValsAndText(start, end);
+  }, [xRange]);
 
   const [channelScaling, setChannelScaling] = useState<
     Map<string, SignalScaling>
@@ -238,37 +271,16 @@ const Plot: React.FC<PlotProps> = ({
         };
       }
 
-      const startTimeMs = startTime.getTime();
-      const timeSeconds = series.timestamps.map(
-        (t) => (t - startTimeMs) / 1000,
-      );
+      const lowerIndex = binarySearch(series.timestamps, xRange[0]);
 
-      const safeStart = Math.max(xRange[0], timeSeconds[0]);
-      const safeEnd = Math.min(xRange[1], timeSeconds[timeSeconds.length - 1]);
+      const upperIndex = binarySearch(series.timestamps, xRange[1]);
 
-      const xFiltered: number[] = [];
-      const yFiltered: number[] = [];
+      const seriesRange: Values = {
+        timestamps: series.timestamps.slice(lowerIndex, upperIndex + 1),
+        values: series.values.slice(lowerIndex, upperIndex + 1),
+      };
 
-      for (let i = 0; i < timeSeconds.length; i++) {
-        const t = timeSeconds[i];
-        if (t >= safeStart && t <= safeEnd) {
-          xFiltered.push(t);
-          yFiltered.push(series.values[i]);
-        }
-      }
-
-      let x: number[] = xFiltered;
-      let y: number[] = yFiltered;
-
-      if (xFiltered.length > 4000) {
-        const slicedValues: Values = {
-          timestamps: xFiltered.map((t) => t * 1000 + startTimeMs),
-          values: yFiltered,
-        };
-        const resampled = resample(slicedValues, 4000);
-        x = resampled.timestamps.map((ts) => (ts - startTimeMs) / 1000);
-        y = resampled.values;
-      }
+      const { timestamps: x, values: y } = lttb(seriesRange, 4000);
 
       return {
         x,
@@ -281,7 +293,7 @@ const Plot: React.FC<PlotProps> = ({
         hovertemplate: `<b>${signal.label}</b><br>Value: %{y:.2f} ${signal.physicalDimension}<extra></extra>`,
       };
     });
-  }, [signals, values, xRange, startTime, revision]);
+  }, [signals, values, xRange, revision]);
 
   const layout: Partial<Plotly.Layout> | undefined = useMemo(() => {
     if (signals.length !== yAxisRanges.length) return undefined;
