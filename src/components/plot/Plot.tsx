@@ -47,29 +47,33 @@ const binarySearch = (arr: number[], target: number): number => {
 // How frequently to respond to x-axis range changes
 const XRANGE_UPDATE_INTERVAL = 100; // ms
 
-const useXRange = (startTime: number, totalDuration: number) => {
+const useXRange = (startTime?: number, endTime?: number) => {
   // We need two separate state variables for the x-axis range otherwise
   // bidirectional updates can cause issues
-  const [xRange, setXRange] = useState<[number, number]>([
-    startTime,
-    startTime + EPOCH_DURATION_MS,
-  ]);
+  const [xRange, setXRange] = useState<[number, number] | undefined>(undefined);
   const [plotlyXRange, setPlotlyXRange] = useState<[number, number]>([
-    startTime,
-    startTime + EPOCH_DURATION_MS,
+    0,
+    EPOCH_DURATION_MS, // Just a dummy initial value for the recording plot etc.
   ]);
 
   useEffect(() => {
-    setPlotlyXRange(xRange);
+    if (xRange) {
+      setPlotlyXRange(xRange);
+    }
   }, [xRange]);
 
   const throttledSetXRange = useMemo(() => {
     const throttled = throttle(
       (start: number, end: number, noclamp: boolean) => {
-        const newStart = Math.max(startTime, start);
+        if (startTime === undefined || endTime === undefined) return;
+
+        let newStart = start;
+        if (!noclamp) {
+          newStart = Math.max(startTime, start);
+        }
         let newEnd = end;
         if (!noclamp) {
-          newEnd = Math.min(startTime + totalDuration, end);
+          newEnd = Math.min(endTime, end);
         }
         if (newEnd - newStart < 1) {
           newEnd = newStart + 1;
@@ -80,17 +84,17 @@ const useXRange = (startTime: number, totalDuration: number) => {
       XRANGE_UPDATE_INTERVAL,
     );
     return throttled;
-  }, [startTime, totalDuration]);
+  }, [startTime, endTime]);
 
   return { xRange, plotlyXRange, throttledSetXRange };
 };
 
 const useKeyboardNavigation = (
   ref: React.RefObject<HTMLDivElement | null>,
-  xRange: [number, number],
-  startTime: number,
-  totalDuration: number,
+  xRange: [number, number] | undefined,
   setXRange: (start: number, end: number, noclamp: boolean) => void,
+  startTime?: number,
+  endTime?: number,
   followMode?: boolean,
 ) => {
   useEffect(() => {
@@ -98,15 +102,17 @@ const useKeyboardNavigation = (
     const el = ref.current;
 
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (!xRange) return;
+
       const [start, end] = xRange;
       const windowSize = end - start;
       const moveBy = windowSize * 0.1;
 
       if (e.key === "ArrowRight") {
-        if (end >= totalDuration) return;
+        if (endTime !== undefined && end >= endTime) return;
         setXRange(start + moveBy, end + moveBy, false);
       } else if (e.key === "ArrowLeft") {
-        if (start <= startTime) return;
+        if (startTime !== undefined && start <= startTime) return;
         setXRange(start - moveBy, end - moveBy, false);
       }
     };
@@ -115,7 +121,7 @@ const useKeyboardNavigation = (
     return () => {
       el.removeEventListener("keydown", handleKeyDown);
     };
-  }, [xRange, startTime, totalDuration, setXRange, followMode, ref]);
+  }, [xRange, setXRange, startTime, endTime, followMode, ref]);
 };
 
 export interface SignalScaling {
@@ -153,59 +159,65 @@ const Plot: React.FC<PlotProps> = ({
     }
   }, [modalOpen, followMode]);
 
-  const startTime = useMemo(() => {
+  const { startTime, endTime } = useMemo(() => {
     void revision;
 
-    if (!signals || signals.length === 0) return 0;
-    if (values.length === 0) return 0;
+    if (!signals || signals.length === 0) {
+      return {};
+    }
+    if (values.length === 0) {
+      return {};
+    }
 
-    return values.reduce((min, series) => {
-      if (series.timestamps.length === 0) return min;
-      const firstTimestamp = series.timestamps[0];
-      return Math.min(min, firstTimestamp);
-    }, Infinity);
-  }, [signals, values, revision]);
+    let minStart = Infinity;
+    let maxEnd = 0;
 
-  const totalDuration = useMemo(() => {
-    void revision;
+    for (const series of values) {
+      if (!series || series.timestamps.length === 0) continue;
 
-    if (!signals || signals.length === 0) return 0;
-    if (values.length === 0) return 0;
+      const first = series.timestamps[0];
+      const last = series.timestamps[series.timestamps.length - 1];
 
-    const maxDuration = values.reduce((max, series) => {
-      if (series.timestamps.length === 0) return max;
-      const lastTimestamp = series.timestamps[series.timestamps.length - 1];
-      return Math.max(max, lastTimestamp);
-    }, 0);
-    return Math.max(maxDuration, EPOCH_DURATION_MS);
+      if (first < minStart) minStart = first;
+      if (last > maxEnd) maxEnd = last;
+    }
+
+    if (minStart === Infinity) {
+      return {};
+    }
+
+    return { startTime: minStart, endTime: maxEnd };
   }, [signals, values, revision]);
 
   const { xRange, plotlyXRange, throttledSetXRange } = useXRange(
     startTime,
-    totalDuration,
+    endTime,
   );
 
   useEffect(() => {
-    if (!followMode) return;
-    const end = xRange[1];
-    if (totalDuration > end) {
-      const nextStart =
-        Math.floor(totalDuration / EPOCH_DURATION_MS) * EPOCH_DURATION_MS;
-      const nextEnd = nextStart + EPOCH_DURATION_MS;
-      throttledSetXRange(nextStart, nextEnd, true);
+    if (!followMode || endTime === undefined) return;
+
+    const end = xRange !== undefined ? xRange[1] : 0;
+    if (endTime > end) {
+      const alignedEnd =
+        Math.ceil(endTime / EPOCH_DURATION_MS) * EPOCH_DURATION_MS;
+      const alignedStart = alignedEnd - EPOCH_DURATION_MS;
+      throttledSetXRange(alignedStart, alignedEnd, true);
     }
-  }, [totalDuration, followMode, xRange, throttledSetXRange]);
+  }, [endTime, followMode, xRange, throttledSetXRange]);
 
   useKeyboardNavigation(
     plotWrapperRef,
     xRange,
-    startTime,
-    totalDuration,
     throttledSetXRange,
+    startTime,
+    endTime,
     followMode,
   );
 
   const { tickvals, ticktext } = useMemo(() => {
+    if (!xRange) return { tickvals: [], ticktext: [] };
+
     const [start, end] = xRange;
     return getTickValsAndText(start, end);
   }, [xRange]);
@@ -271,9 +283,19 @@ const Plot: React.FC<PlotProps> = ({
         };
       }
 
-      const lowerIndex = binarySearch(series.timestamps, xRange[0]);
+      let lowerIndex = 0;
+      let upperIndex = series.timestamps.length - 1;
 
-      const upperIndex = binarySearch(series.timestamps, xRange[1]);
+      if (xRange) {
+        const lowerIndexRaw = binarySearch(series.timestamps, xRange[0]);
+        lowerIndex = Math.max(0, lowerIndexRaw + 1);
+
+        const upperIndexRaw = binarySearch(series.timestamps, xRange[1]);
+        upperIndex = Math.min(
+          series.timestamps.length - 1,
+          Math.max(upperIndexRaw, 0),
+        );
+      }
 
       const seriesRange: Values = {
         timestamps: series.timestamps.slice(lowerIndex, upperIndex + 1),
@@ -369,12 +391,12 @@ const Plot: React.FC<PlotProps> = ({
 
   const handleRelayout = useCallback(
     (e: Partial<Plotly.Layout>) => {
-      const range = parseRelayoutEvent(e, totalDuration);
+      const range = parseRelayoutEvent(e, startTime);
       if (range) {
-        throttledSetXRange(range[0], range[1], true);
+        throttledSetXRange(range[0], range[1], false);
       }
     },
-    [throttledSetXRange, totalDuration],
+    [throttledSetXRange, startTime],
   );
 
   const [selectedChannel, setSelectedChannel] = useState<number | undefined>(

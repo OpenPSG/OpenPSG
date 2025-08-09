@@ -17,8 +17,12 @@ import { EPOCH_DURATION_MS } from "@/lib/constants";
 
 export const parseRelayoutEvent = (
   e: Partial<Plotly.Layout>,
-  totalDuration: number,
+  startTime?: number,
 ) => {
+  if (startTime === undefined) {
+    return undefined;
+  }
+
   let newStart, newEnd;
 
   if (e["xaxis.range"]) {
@@ -29,15 +33,18 @@ export const parseRelayoutEvent = (
   }
 
   if (typeof newStart === "number" && typeof newEnd === "number") {
-    newStart = Math.max(0, newStart);
-    newEnd = Math.min(totalDuration, newEnd);
-    return newEnd - newStart < 1
-      ? [newStart, newStart + 1]
-      : [newStart, newEnd];
+    if (newStart < startTime && newEnd < startTime) {
+      return [startTime, startTime + EPOCH_DURATION_MS];
+    }
+
+    return [newStart, newEnd];
   }
 
-  if (e["xaxis.autorange"]) return [0, EPOCH_DURATION_MS];
-  return null;
+  if ((e["autosize"] || e["xaxis.autorange"]) && startTime !== undefined) {
+    return [startTime, startTime + EPOCH_DURATION_MS];
+  }
+
+  return undefined;
 };
 
 export const getTickValsAndText = (

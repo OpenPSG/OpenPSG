@@ -19,18 +19,8 @@ import { EPOCH_DURATION_MS } from "@/lib/constants";
 
 describe("parseRelayoutEvent", () => {
   it("returns range from xaxis.range", () => {
-    const result = parseRelayoutEvent({ "xaxis.range": [10, 20] }, 100);
+    const result = parseRelayoutEvent({ "xaxis.range": [10, 20] }, 0);
     expect(result).toEqual([10, 20]);
-  });
-
-  it("returns clamped range within 0 and totalDuration", () => {
-    const result = parseRelayoutEvent({ "xaxis.range": [-5, 150] }, 100);
-    expect(result).toEqual([0, 100]);
-  });
-
-  it("returns at least 1 second range", () => {
-    const result = parseRelayoutEvent({ "xaxis.range": [30.5, 30.7] }, 100);
-    expect(result).toEqual([30.5, 31.5]);
   });
 
   it("returns range from xaxis.range[0] and xaxis.range[1]", () => {
@@ -39,7 +29,7 @@ describe("parseRelayoutEvent", () => {
         "xaxis.range[0]": 40,
         "xaxis.range[1]": 50,
       },
-      100,
+      0,
     );
     expect(result).toEqual([40, 50]);
   });
@@ -49,14 +39,14 @@ describe("parseRelayoutEvent", () => {
       {
         "xaxis.autorange": true,
       },
-      100,
+      0,
     );
     expect(result).toEqual([0, EPOCH_DURATION_MS]);
   });
 
   it("returns null for invalid input", () => {
-    const result = parseRelayoutEvent({}, 100);
-    expect(result).toBeNull();
+    const result = parseRelayoutEvent({}, 0);
+    expect(result).toBeUndefined();
   });
 });
 
