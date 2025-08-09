@@ -24,36 +24,22 @@ import PlotlyPlot from "react-plotly.js";
 import "./plot.css";
 import { lttb } from "@/lib/resampling/lttb";
 import ChannelConfigDialog from "./ChannelConfigDialog";
-import { parseRelayoutEvent, getTickValsAndText } from "./utils";
+import { binarySearch, parseRelayoutEvent } from "./utils";
 import type { EDFSignal } from "@/lib/edf/edftypes";
 import { EPOCH_DURATION_MS } from "@/lib/constants";
 import type { Values } from "@/lib/types";
 import throttle from "lodash/throttle";
 
-const binarySearch = (arr: number[], target: number): number => {
-  let left = 0,
-    right = arr.length;
-  while (left < right) {
-    const mid = (left + right) >> 1;
-    if (arr[mid] <= target) {
-      left = mid + 1;
-    } else {
-      right = mid;
-    }
-  }
-  return left - 1;
-};
-
 // How frequently to respond to x-axis range changes
 const XRANGE_UPDATE_INTERVAL = 100; // ms
 
-const useXRange = (startTime?: number, endTime?: number) => {
+const useXRange = (startTime?: Date, endTime?: Date) => {
   // We need two separate state variables for the x-axis range otherwise
   // bidirectional updates can cause issues
-  const [xRange, setXRange] = useState<[number, number] | undefined>(undefined);
-  const [plotlyXRange, setPlotlyXRange] = useState<[number, number]>([
-    0,
-    EPOCH_DURATION_MS, // Just a dummy initial value for the recording plot etc.
+  const [xRange, setXRange] = useState<[Date, Date] | undefined>(undefined);
+  const [plotlyXRange, setPlotlyXRange] = useState<[Date, Date]>([
+    new Date(0),
+    new Date(EPOCH_DURATION_MS), // Just a dummy initial value for the recording plot etc.
   ]);
 
   useEffect(() => {
@@ -63,26 +49,21 @@ const useXRange = (startTime?: number, endTime?: number) => {
   }, [xRange]);
 
   const throttledSetXRange = useMemo(() => {
-    const throttled = throttle(
-      (start: number, end: number, noclamp: boolean) => {
-        if (startTime === undefined || endTime === undefined) return;
+    const throttled = throttle((start: Date, end: Date, noclamp: boolean) => {
+      if (startTime === undefined || endTime === undefined) return;
 
-        let newStart = start;
-        if (!noclamp) {
-          newStart = Math.max(startTime, start);
-        }
-        let newEnd = end;
-        if (!noclamp) {
-          newEnd = Math.min(endTime, end);
-        }
-        if (newEnd - newStart < 1) {
-          newEnd = newStart + 1;
-        }
+      let newStart = start;
+      if (!noclamp) {
+        newStart = new Date(Math.max(startTime.getTime(), start.getTime()));
+      }
 
-        setXRange([newStart, newEnd]);
-      },
-      XRANGE_UPDATE_INTERVAL,
-    );
+      let newEnd = end;
+      if (!noclamp) {
+        newEnd = new Date(Math.min(endTime.getTime(), end.getTime()));
+      }
+
+      setXRange([newStart, newEnd]);
+    }, XRANGE_UPDATE_INTERVAL);
     return throttled;
   }, [startTime, endTime]);
 
@@ -91,10 +72,10 @@ const useXRange = (startTime?: number, endTime?: number) => {
 
 const useKeyboardNavigation = (
   ref: React.RefObject<HTMLDivElement | null>,
-  xRange: [number, number] | undefined,
-  setXRange: (start: number, end: number, noclamp: boolean) => void,
-  startTime?: number,
-  endTime?: number,
+  xRange: [Date, Date] | undefined,
+  setXRange: (start: Date, end: Date, noclamp: boolean) => void,
+  startTime?: Date,
+  endTime?: Date,
   followMode?: boolean,
 ) => {
   useEffect(() => {
@@ -105,15 +86,23 @@ const useKeyboardNavigation = (
       if (!xRange) return;
 
       const [start, end] = xRange;
-      const windowSize = end - start;
+      const windowSize = end.getTime() - start.getTime();
       const moveBy = windowSize * 0.1;
 
       if (e.key === "ArrowRight") {
         if (endTime !== undefined && end >= endTime) return;
-        setXRange(start + moveBy, end + moveBy, false);
+        setXRange(
+          new Date(start.getTime() + moveBy),
+          new Date(end.getTime() + moveBy),
+          false,
+        );
       } else if (e.key === "ArrowLeft") {
         if (startTime !== undefined && start <= startTime) return;
-        setXRange(start - moveBy, end - moveBy, false);
+        setXRange(
+          new Date(start.getTime() - moveBy),
+          new Date(end.getTime() - moveBy),
+          false,
+        );
       }
     };
 
@@ -186,7 +175,7 @@ const Plot: React.FC<PlotProps> = ({
       return {};
     }
 
-    return { startTime: minStart, endTime: maxEnd };
+    return { startTime: new Date(minStart), endTime: new Date(maxEnd) };
   }, [signals, values, revision]);
 
   const { xRange, plotlyXRange, throttledSetXRange } = useXRange(
@@ -199,9 +188,10 @@ const Plot: React.FC<PlotProps> = ({
 
     const end = xRange !== undefined ? xRange[1] : 0;
     if (endTime > end) {
-      const alignedEnd =
-        Math.ceil(endTime / EPOCH_DURATION_MS) * EPOCH_DURATION_MS;
-      const alignedStart = alignedEnd - EPOCH_DURATION_MS;
+      const alignedEnd = new Date(
+        Math.ceil(endTime.getTime() / EPOCH_DURATION_MS) * EPOCH_DURATION_MS,
+      );
+      const alignedStart = new Date(alignedEnd.getTime() - EPOCH_DURATION_MS);
       throttledSetXRange(alignedStart, alignedEnd, true);
     }
   }, [endTime, followMode, xRange, throttledSetXRange]);
@@ -214,13 +204,6 @@ const Plot: React.FC<PlotProps> = ({
     endTime,
     followMode,
   );
-
-  const { tickvals, ticktext } = useMemo(() => {
-    if (!xRange) return { tickvals: [], ticktext: [] };
-
-    const [start, end] = xRange;
-    return getTickValsAndText(start, end);
-  }, [xRange]);
 
   const [channelScaling, setChannelScaling] = useState<
     Map<string, SignalScaling>
@@ -304,15 +287,18 @@ const Plot: React.FC<PlotProps> = ({
 
       const { timestamps: x, values: y } = lttb(seriesRange, 4000);
 
+      // TODO: use Date objects directly in the series
+      const xDates = x.map((t) => new Date(t));
+
       return {
-        x,
+        x: xDates,
         y,
         type: "scattergl" as const,
         mode: "lines" as const,
         name: signal.label,
         yaxis: `y${index === 0 ? "" : index + 1}` as Plotly.AxisName,
         line: { width: 1 },
-        hovertemplate: `<b>${signal.label}</b><br>Value: %{y:.2f} ${signal.physicalDimension}<extra></extra>`,
+        hovertemplate: `<b>${signal.label}</b><br>Time: %{x|%H:%M:%S}<br>Value: %{y:.2f} ${signal.physicalDimension}<extra></extra>`,
       };
     });
   }, [signals, values, xRange, revision]);
@@ -332,7 +318,7 @@ const Plot: React.FC<PlotProps> = ({
       },
       margin: { t: 30, l: 0, r: 0, b: 30 },
       xaxis: {
-        domain: [0, 1],
+        type: "date",
         anchor:
           `y${signals.length === 1 ? "" : signals.length}` as Plotly.AxisName,
         showgrid: true,
@@ -340,8 +326,13 @@ const Plot: React.FC<PlotProps> = ({
         side: "bottom" as const,
         range: plotlyXRange,
         constrain: "range" as const,
-        tickvals,
-        ticktext,
+        tickmode: "auto",
+        nticks: 8,
+        tickformatstops: [
+          { dtickrange: [null, 60_000], value: "%H:%M:%S" }, // < 1 min
+          { dtickrange: [60_000, 86_400_000], value: "%H:%M" }, // < 1 day
+          { dtickrange: [86_400_000, null], value: "%Y-%m-%d" },
+        ],
         tickangle: 0,
         tickfont: { size: 10 },
         fixedrange: followMode,
@@ -387,7 +378,7 @@ const Plot: React.FC<PlotProps> = ({
         };
       }),
     };
-  }, [plotlyXRange, tickvals, ticktext, signals, yAxisRanges, followMode]);
+  }, [plotlyXRange, signals, yAxisRanges, followMode]);
 
   const handleRelayout = useCallback(
     (e: Partial<Plotly.Layout>) => {

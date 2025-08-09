@@ -17,75 +17,47 @@ import { EPOCH_DURATION_MS } from "@/lib/constants";
 
 export const parseRelayoutEvent = (
   e: Partial<Plotly.Layout>,
-  startTime?: number,
+  startTime?: Date,
 ) => {
   if (startTime === undefined) {
     return undefined;
   }
 
+  if ((e["autosize"] || e["xaxis.autorange"]) && startTime !== undefined) {
+    return [startTime, new Date(startTime.getTime() + EPOCH_DURATION_MS)];
+  }
+
   let newStart, newEnd;
 
   if (e["xaxis.range"]) {
-    [newStart, newEnd] = e["xaxis.range"];
+    newStart = new Date(e["xaxis.range"][0] ?? "");
+    newEnd = new Date(e["xaxis.range"][1] ?? "");
   } else if (e["xaxis.range[0]"] && e["xaxis.range[1]"]) {
-    newStart = e["xaxis.range[0]"];
-    newEnd = e["xaxis.range[1]"];
+    newStart = new Date(e["xaxis.range[0]"]);
+    newEnd = new Date(e["xaxis.range[1]"]);
   }
 
-  if (typeof newStart === "number" && typeof newEnd === "number") {
+  if (newStart !== undefined && newEnd !== undefined) {
     if (newStart < startTime && newEnd < startTime) {
-      return [startTime, startTime + EPOCH_DURATION_MS];
+      return [startTime, new Date(startTime.getTime() + EPOCH_DURATION_MS)];
     }
 
-    return [newStart, newEnd];
-  }
-
-  if ((e["autosize"] || e["xaxis.autorange"]) && startTime !== undefined) {
-    return [startTime, startTime + EPOCH_DURATION_MS];
+    return [new Date(newStart), new Date(newEnd)];
   }
 
   return undefined;
 };
 
-export const getTickValsAndText = (
-  start: number,
-  end: number,
-): { tickvals: number[]; ticktext: string[] } => {
-  const duration = (end - start) / 1000; // In seconds
-  if (duration <= 0) return { tickvals: [], ticktext: [] };
-
-  let interval: number;
-  if (duration <= 10) {
-    interval = 1_000;
-  } else if (duration <= 60) {
-    interval = 5_000;
-  } else if (duration <= 300) {
-    interval = 30_000;
-  } else if (duration <= 1800) {
-    interval = 60_000;
-  } else if (duration <= 7200) {
-    interval = 300_000;
-  } else if (duration <= 14400) {
-    interval = 600_000;
-  } else if (duration <= 43200) {
-    interval = 1800_000;
-  } else {
-    interval = 3600_000;
+export const binarySearch = (arr: number[], target: Date): number => {
+  let left = 0,
+    right = arr.length;
+  while (left < right) {
+    const mid = (left + right) >> 1;
+    if (arr[mid] <= target.getTime()) {
+      left = mid + 1;
+    } else {
+      right = mid;
+    }
   }
-
-  const tickvals: number[] = [];
-  const ticktext: string[] = [];
-
-  const alignedFirstTick = Math.ceil((start / interval) * interval);
-
-  for (let t = alignedFirstTick; t <= end; t += interval) {
-    tickvals.push(t);
-    const date = new Date(t);
-    const hours = String(date.getHours()).padStart(2, "0");
-    const minutes = String(date.getMinutes()).padStart(2, "0");
-    const seconds = String(date.getSeconds()).padStart(2, "0");
-    ticktext.push(`${hours}:${minutes}:${seconds}`);
-  }
-
-  return { tickvals, ticktext };
+  return left - 1;
 };
