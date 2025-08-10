@@ -35,7 +35,6 @@ import type { Value, Values } from "@/lib/types";
  * Note: This implementation assumes the timestamps are sorted in ascending order.
  */
 export function resample(input: Values, n: number): Values {
-  //const { timestamps, values: ys } = values;
   const length = input.length;
 
   if (n >= length || n < 3) {

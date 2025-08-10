@@ -16,39 +16,25 @@
 import type { Driver } from "@/lib/drivers/driver";
 import type { EDFSignal } from "@/lib/edf/edftypes";
 import { EDFWriter } from "@/lib/edf/edfwriter";
-import type { Values } from "@/lib/types";
+import type { Values, Value } from "@/lib/types";
 import { resample } from "@/lib/resampling/linear";
 import { EPOCH_DURATION_MS } from "@/lib/constants";
+import { CircularBuffer } from "@/lib/containers/circular-buffer";
 
 export const startStreaming = (
   driver: Driver,
   startIndex: number,
-  valuesRef: React.RefObject<Values[]>,
-  windowMs: number,
+  valuesRef: React.RefObject<CircularBuffer<Value>[]>,
   onError?: (err: Error) => void,
 ): void => {
   (async () => {
     try {
       for await (const next of driver.values()) {
-        const now = Date.now();
-
         for (let i = 0; i < next.length; i++) {
           const signalIndex = startIndex + i;
-
-          if (!valuesRef.current[signalIndex]) {
-            valuesRef.current[signalIndex] = [];
-          }
-
-          const arr = valuesRef.current[signalIndex];
-          arr.push(next[i]);
-
-          // Trim anything older than windowMs
-          while (
-            arr.length > 0 &&
-            arr[0].timestamp.getTime() < now - windowMs
-          ) {
-            arr.shift();
-          }
+          const buf = valuesRef.current[signalIndex];
+          if (!buf) continue; // buffer should exist; skip if not yet initialized
+          buf.push(next[i]); // overwrites oldest when full
         }
       }
     } catch (err) {
@@ -70,7 +56,7 @@ export const startEDFWriterLoop = ({
 }: {
   edfWriter: EDFWriter;
   signals: EDFSignal[];
-  valuesRef: React.RefObject<Values[]>;
+  valuesRef: React.RefObject<CircularBuffer<Value>[]>;
   onError: (err: Error) => void;
 }): (() => void) => {
   const interval = setInterval(async () => {
@@ -81,21 +67,24 @@ export const startEDFWriterLoop = ({
 
       const samplesPerRecordList = signals.map((s) => s.samplesPerRecord);
 
-      // For each signal, grab the last epoch's worth of samples
-      const recentPerSignal: Values[] = valuesRef.current.map((arr) => {
-        if (!arr || arr.length === 0) return [];
-        const out: Values = [];
-        for (let i = arr.length - 1; i >= 0; i--) {
-          if (arr[i].timestamp.getTime() >= fromTime) {
-            out.unshift(arr[i]);
+      // For each signal, collect samples within the last epoch.
+      // Scan buffer newest -> oldest and stop once we cross the boundary.
+      const recentPerSignal: Values[] = valuesRef.current.map((buf) => {
+        if (!buf || buf.size === 0) return [];
+        const out: Value[] = [];
+        for (let i = buf.size - 1; i >= 0; i--) {
+          const v = buf.at(i);
+          if (v.timestamp.getTime() >= fromTime) {
+            out.push(v);
           } else {
             break;
           }
         }
+        out.reverse(); // restore chronological order (oldest -> newest)
         return out;
       });
 
-      // Resample each signal to the EDF record length, then extract the numeric values
+      // Resample each signal to the EDF record length, then extract numeric values
       const resampled: number[][] = recentPerSignal.map((vals, i) => {
         const samples = samplesPerRecordList[i];
         if (vals.length === 0) return new Array(samples).fill(0);

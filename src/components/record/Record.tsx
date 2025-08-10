@@ -29,7 +29,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import type { Driver, ConfigValue } from "@/lib/drivers/driver";
 import type { EDFSignal } from "@/lib/edf/edftypes";
-import type { Values } from "@/lib/types";
+import type { Value } from "@/lib/types";
 import { DriverRegistry } from "@/lib/drivers/driver-registry";
 import { EPOCH_DURATION_MS } from "@/lib/constants";
 import SensorConfigDialog from "./SensorConfigDialog";
@@ -44,13 +44,15 @@ import {
 import FullPageSpinner from "@/components/FullPageSpinner";
 import { MemoryWritableStream } from "@/lib/stream";
 import { startStreaming, startEDFWriterLoop } from "./utils";
+import { CircularBuffer } from "@/lib/containers/circular-buffer";
 
 const VALUE_RETENTION_MS = 5 * 60 * 1000; // 5 minutes
 
 export default function Record() {
   const sensorsRef = useRef<Driver[]>([]);
   const wakeLockRef = useRef<WakeLockSentinel | undefined>(undefined);
-  const valuesRef = useRef<Values[]>([]);
+  const valuesRef = useRef<CircularBuffer<Value>[]>([]);
+
   const [configureSensorDialogOpen, setConfigureSensorDialogOpen] =
     useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
@@ -121,15 +123,24 @@ export default function Record() {
       const startIndex = signals.length;
 
       setSignals((prev) => [...prev, ...newSignals]);
-      valuesRef.current = [...valuesRef.current, ...newSignals.map(() => [])];
+
+      // Pre-size CircularBuffers so we retain ~VALUE_RETENTION_MS worth of data.
+      const epochSec = EPOCH_DURATION_MS / 1000;
+      const newBuffers = newSignals.map((s) => {
+        const samplesPerSec = s.samplesPerRecord / epochSec;
+        const capacity = Math.max(
+          Math.ceil(samplesPerSec * (VALUE_RETENTION_MS / 1000)) +
+            s.samplesPerRecord,
+          s.samplesPerRecord * 2,
+        );
+        return new CircularBuffer<Value>(capacity);
+      });
+      valuesRef.current = [...valuesRef.current, ...newBuffers];
+
       setConfigureSensorDialogOpen(false);
 
-      startStreaming(
-        driverToUse,
-        startIndex,
-        valuesRef,
-        VALUE_RETENTION_MS,
-        (err) => setError("Failed to read values from sensor: " + err.message),
+      startStreaming(driverToUse, startIndex, valuesRef, (err) =>
+        setError("Failed to read values from sensor: " + err.message),
       );
     },
     [activeSensor, signals],
@@ -163,6 +174,7 @@ export default function Record() {
 
   const bufferGetterRef =
     useRef<() => Promise<Uint8Array> | undefined>(undefined);
+
   const handleToggleRecording = useCallback(async () => {
     if (recording) {
       try {
@@ -226,8 +238,7 @@ export default function Record() {
     }
   }, [recording, signals, edfWriter]);
 
-  // Trigger a plot update every second, this is necessary as we are using a
-  // ref for the values array.
+  // Trigger a plot update every second
   const [revision, setRevision] = useState(0);
   useEffect(() => {
     if (!signals.length) return;
@@ -285,7 +296,7 @@ export default function Record() {
 
         <Plot
           signals={signals}
-          values={valuesRef.current}
+          values={valuesRef.current.map((b) => (b ? b.toArray() : []))}
           followMode={true}
           revision={revision}
         />
