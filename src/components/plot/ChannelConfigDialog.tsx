@@ -33,6 +33,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Info } from "lucide-react";
+import { KLLSketch } from "@/lib/kll/kll";
 
 export interface ChannelConfigModalProps {
   open: boolean;
@@ -82,32 +83,47 @@ const ChannelConfigDialog: React.FC<ChannelConfigModalProps> = ({
   };
 
   const handleAutoscale = () => {
-    if (!values || values.values.length === 0) return;
+    if (!values || values.length === 0) {
+      return;
+    }
 
-    const sorted = [...values.values].sort((a, b) => a - b);
-    const getPercentile = (p: number) => {
-      const index = p * (sorted.length - 1);
-      const lower = Math.floor(index);
-      const upper = Math.ceil(index);
-      const weight = index - lower;
-      return sorted[lower] * (1 - weight) + sorted[upper] * weight;
-    };
+    // Create a KLL sketch for approximate quantiles.
+    const sketch = new KLLSketch({ k: 256, c: 2 / 3 });
 
-    const low = getPercentile(0.01);
-    const high = getPercentile(0.99);
+    // Feed data values into the sketch
+    values.forEach((value) => {
+      sketch.add(value.value);
+    });
 
+    // Get approximate 1st and 99th percentiles
+    const low = sketch.quantile(0.01);
+    const high = sketch.quantile(0.99);
+
+    // Clamp values to the physical range of the signal
+    const clamp = (x: number) =>
+      Math.max(signal.physicalMin, Math.min(signal.physicalMax, x));
+    const lo = clamp(low);
+    const hi = clamp(high);
+
+    // Validate bounds
+    if (!Number.isFinite(lo) || !Number.isFinite(hi) || lo >= hi) {
+      return;
+    }
+
+    // Build the new scaling object
     const updated: SignalScaling = isBipolar
       ? {
           bipolar: true,
-          midpoint: (low + high) / 2,
-          halfrange: 1.1 * ((high - low) / 2),
+          midpoint: (lo + hi) / 2,
+          halfrange: 1.1 * ((hi - lo) / 2),
         }
       : {
           bipolar: false,
-          min: low * 0.95,
-          max: high * 1.05,
+          min: lo * 0.95,
+          max: hi * 1.05,
         };
 
+    // Apply the new scaling to the channel
     onScalingChange(signal.label, updated);
   };
 
@@ -132,7 +148,7 @@ const ChannelConfigDialog: React.FC<ChannelConfigModalProps> = ({
               onClick={handleAutoscale}
               variant="outline"
               size="sm"
-              disabled={values === undefined || values.values.length === 0}
+              disabled={values === undefined || values.length === 0}
             >
               Autoscale
             </Button>

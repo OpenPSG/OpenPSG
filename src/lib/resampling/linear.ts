@@ -19,36 +19,40 @@ import type { Values } from "@/lib/types";
 // This function can either upsample or downsample the input array.
 // It uses linear interpolation to fill in the gaps when upsampling.
 export function resample(input: Values, n: number): Values {
-  const length = input.timestamps.length;
+  const length = input.length;
   if (length === 0 || n === 0) {
-    return { timestamps: [], values: [] };
+    return [];
   }
 
   // If input is already the desired size, return as-is
   if (length === n) {
-    return {
-      timestamps: [...input.timestamps],
-      values: [...input.values],
-    };
+    return input.map(({ timestamp, value }) => ({
+      timestamp: new Date(timestamp),
+      value,
+    }));
   }
 
   // Handle case where n is 1: return middle value
   if (n === 1) {
     const mid = Math.floor((length - 1) / 2);
-    return {
-      timestamps: [input.timestamps[mid]],
-      values: [input.values[mid]],
-    };
+    return [
+      {
+        timestamp: new Date(input[mid].timestamp),
+        value: input[mid].value,
+      },
+    ];
   }
 
-  const { timestamps, values } = input;
+  // Extract times as numbers for calculation
+  const timestamps = input.map((p) => p.timestamp.getTime());
+  const values = input.map((p) => p.value);
+
   const startTime = timestamps[0];
   const endTime = timestamps[length - 1];
   const totalDuration = endTime - startTime;
   const step = totalDuration / (n - 1);
 
-  const resultTimestamps: number[] = [];
-  const resultValues: number[] = [];
+  const result: Values = [];
 
   for (let i = 0; i < n; i++) {
     const targetTime = startTime + i * step;
@@ -70,19 +74,19 @@ export function resample(input: Values, n: number): Values {
     const leftValue = values[left];
     const rightValue = values[right];
 
+    let interpolatedValue: number;
     if (rightTime === leftTime) {
-      resultTimestamps.push(targetTime);
-      resultValues.push(leftValue);
+      interpolatedValue = leftValue;
     } else {
       const ratio = (targetTime - leftTime) / (rightTime - leftTime);
-      const interpolatedValue = leftValue * (1 - ratio) + rightValue * ratio;
-      resultTimestamps.push(targetTime);
-      resultValues.push(interpolatedValue);
+      interpolatedValue = leftValue * (1 - ratio) + rightValue * ratio;
     }
+
+    result.push({
+      timestamp: new Date(targetTime),
+      value: interpolatedValue,
+    });
   }
 
-  return {
-    timestamps: resultTimestamps,
-    values: resultValues,
-  };
+  return result;
 }

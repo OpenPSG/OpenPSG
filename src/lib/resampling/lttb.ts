@@ -13,7 +13,7 @@
  * later version. See <https://www.gnu.org/licenses/agpl-3.0.html> for details.
  */
 
-import type { Values } from "@/lib/types";
+import type { Value, Values } from "@/lib/types";
 
 /**
  * Downsamples a time series using the Largest-Triangle-Three-Buckets (LTTB) algorithm.
@@ -26,28 +26,26 @@ import type { Values } from "@/lib/types";
  * interactive plots (e.g., EEG signals, telemetry data, or any signal where
  * visual fidelity matters), especially in a limited pixel space.
  *
- * @param values - The original time series to be downsampled.
+ * @param input - The original time series to be downsampled.
  * @param n - The maximum number of points to include in the output. Must be >= 3.
  * @returns A new `Values` object containing `n` number of points selected using LTTB.
  *
  * @see https://skemman.is/handle/1946/15343 - Sveinn Steinarsson’s MSc thesis introducing LTTB
  *
- * Note: This implementation assumes the timestamps are in milliseconds and sorted in ascending order.
+ * Note: This implementation assumes the timestamps are sorted in ascending order.
  */
-export function lttb(values: Values, n: number): Values {
-  const { timestamps, values: ys } = values;
-  const length = timestamps.length;
+export function resample(input: Values, n: number): Values {
+  //const { timestamps, values: ys } = values;
+  const length = input.length;
 
   if (n >= length || n < 3) {
-    return values; // No resampling needed
+    return input; // No resampling needed
   }
 
-  const sampledTimestamps = new Array<number>(n);
-  const sampledValues = new Array<number>(n);
+  const sampledValues = new Array<Value>(n);
 
   // Always include first point
-  sampledTimestamps[0] = timestamps[0];
-  sampledValues[0] = ys[0];
+  sampledValues[0] = input[0];
 
   const bucketSize = (length - 2) / (n - 2);
   let a = 0;
@@ -65,8 +63,8 @@ export function lttb(values: Values, n: number): Values {
     if (avgCount < 1) avgCount = 1; // prevent division by 0
 
     for (let j = rangeStart; j < rangeEnd; j++) {
-      avgX += timestamps[j];
-      avgY += ys[j];
+      avgX += input[j].timestamp.getTime();
+      avgY += input[j].value;
     }
 
     avgX /= avgCount;
@@ -79,12 +77,13 @@ export function lttb(values: Values, n: number): Values {
     let maxArea = -1;
     let maxIndex = -1;
 
-    const ax = timestamps[a];
-    const ay = ys[a];
+    const ax = input[a].timestamp.getTime();
+    const ay = input[a].value;
 
     for (let j = bucketStart; j < bucketEnd; j++) {
       const area = Math.abs(
-        (ax - avgX) * (ys[j] - ay) - (ax - timestamps[j]) * (avgY - ay),
+        (ax - avgX) * (input[j].value - ay) -
+          (ax - input[j].timestamp.getTime()) * (avgY - ay),
       );
 
       if (area > maxArea) {
@@ -93,18 +92,13 @@ export function lttb(values: Values, n: number): Values {
       }
     }
 
-    sampledTimestamps[sampledIndex] = timestamps[maxIndex];
-    sampledValues[sampledIndex] = ys[maxIndex];
+    sampledValues[sampledIndex] = input[maxIndex];
     a = maxIndex;
     sampledIndex++;
   }
 
   // Always include last point
-  sampledTimestamps[n - 1] = timestamps[length - 1];
-  sampledValues[n - 1] = ys[length - 1];
+  sampledValues[n - 1] = input[length - 1];
 
-  return {
-    timestamps: sampledTimestamps,
-    values: sampledValues,
-  };
+  return sampledValues;
 }

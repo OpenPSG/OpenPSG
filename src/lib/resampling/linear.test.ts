@@ -14,15 +14,17 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { resample } from "./resample";
+import { resample } from "./linear";
 import type { Values } from "@/lib/types";
 
 function expectValuesClose(a: Values, b: Values, precision = 10) {
-  expect(a.timestamps.length).toBe(b.timestamps.length);
-  expect(a.values.length).toBe(b.values.length);
-  a.timestamps.forEach((t, i) => {
-    expect(t).toBeCloseTo(b.timestamps[i], precision);
-    expect(a.values[i]).toBeCloseTo(b.values[i], precision);
+  expect(a.length).toBe(b.length);
+  a.forEach((val, i) => {
+    expect(val.timestamp.getTime()).toBeCloseTo(
+      b[i].timestamp.getTime(),
+      precision,
+    );
+    expect(val.value).toBeCloseTo(b[i].value, precision);
   });
 }
 
@@ -32,7 +34,10 @@ function makeValueSeries(
   intervalMs = 1000,
 ): Values {
   const timestamps = values.map((_, i) => startMs + i * intervalMs);
-  return { timestamps, values };
+  return timestamps.map((timestamp, i) => ({
+    timestamp: new Date(timestamp),
+    value: values[i],
+  }));
 }
 
 function interpolateValueSeries(
@@ -43,10 +48,13 @@ function interpolateValueSeries(
   const n = values.length;
   const step = (endMs - startMs) / (n - 1);
   const timestamps = values.map((_, i) => startMs + i * step);
-  return { timestamps, values };
+  return timestamps.map((timestamp, i) => ({
+    timestamp: new Date(timestamp),
+    value: values[i],
+  }));
 }
 
-describe("resample", () => {
+describe("linear", () => {
   it("correctly downsamples", () => {
     const input = makeValueSeries([0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100]);
     const expected = interpolateValueSeries([0, 25, 50, 75, 100], 0, 10000);
@@ -78,10 +86,10 @@ describe("resample", () => {
   it("returns first and last elements at boundaries", () => {
     const input = makeValueSeries([3, 6, 9, 12, 15]); // 0–4000ms
     const result = resample(input, 3);
-    expect(result.values[0]).toBeCloseTo(3);
-    expect(result.values[2]).toBeCloseTo(15);
-    expect(result.timestamps[0]).toBeCloseTo(0);
-    expect(result.timestamps[2]).toBeCloseTo(4000);
+    expect(result[0].value).toBeCloseTo(3);
+    expect(result[2].value).toBeCloseTo(15);
+    expect(result[0].timestamp.getTime()).toBeCloseTo(0);
+    expect(result[2].timestamp.getTime()).toBeCloseTo(4000);
   });
 
   it("handles repeated values correctly", () => {
@@ -106,13 +114,13 @@ describe("resample", () => {
   });
 
   it("returns empty arrays when input is empty", () => {
-    const result = resample({ timestamps: [], values: [] }, 5);
-    expect(result).toEqual({ timestamps: [], values: [] });
+    const result = resample([], 5);
+    expect(result).toEqual([]);
   });
 
   it("returns empty arrays when n is 0", () => {
     const input = makeValueSeries([1, 2, 3]);
     const result = resample(input, 0);
-    expect(result).toEqual({ timestamps: [], values: [] });
+    expect(result).toEqual([]);
   });
 });

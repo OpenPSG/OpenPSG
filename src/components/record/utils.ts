@@ -17,7 +17,7 @@ import type { Driver } from "@/lib/drivers/driver";
 import type { EDFSignal } from "@/lib/edf/edftypes";
 import { EDFWriter } from "@/lib/edf/edfwriter";
 import type { Values } from "@/lib/types";
-import { resample } from "@/lib/resampling/resample";
+import { resample } from "@/lib/resampling/linear";
 import { EPOCH_DURATION_MS } from "@/lib/constants";
 
 export const startStreaming = (
@@ -31,19 +31,23 @@ export const startStreaming = (
     try {
       for await (const next of driver.values()) {
         const now = Date.now();
+
         for (let i = 0; i < next.length; i++) {
           const signalIndex = startIndex + i;
+
           if (!valuesRef.current[signalIndex]) {
-            valuesRef.current[signalIndex] = { timestamps: [], values: [] };
+            valuesRef.current[signalIndex] = [];
           }
 
-          const v = valuesRef.current[signalIndex];
-          v.timestamps.push(next[i].timestamp);
-          v.values.push(next[i].value);
+          const arr = valuesRef.current[signalIndex];
+          arr.push(next[i]);
 
-          while (v.timestamps.length > 0 && v.timestamps[0] < now - windowMs) {
-            v.timestamps.shift();
-            v.values.shift();
+          // Trim anything older than windowMs
+          while (
+            arr.length > 0 &&
+            arr[0].timestamp.getTime() < now - windowMs
+          ) {
+            arr.shift();
           }
         }
       }
@@ -73,30 +77,30 @@ export const startEDFWriterLoop = ({
     try {
       const now = Date.now();
       const epochMs = EPOCH_DURATION_MS;
+      const fromTime = now - epochMs;
 
       const samplesPerRecordList = signals.map((s) => s.samplesPerRecord);
-      const recentValues: Values[] = valuesRef.current.map((v) => {
-        const fromTime = now - epochMs;
-        const timestamps: number[] = [];
-        const vals: number[] = [];
 
-        for (let i = v.timestamps.length - 1; i >= 0; i--) {
-          if (v.timestamps[i] >= fromTime) {
-            timestamps.unshift(v.timestamps[i]);
-            vals.unshift(v.values[i]);
+      // For each signal, grab the last epoch's worth of samples
+      const recentPerSignal: Values[] = valuesRef.current.map((arr) => {
+        if (!arr || arr.length === 0) return [];
+        const out: Values = [];
+        for (let i = arr.length - 1; i >= 0; i--) {
+          if (arr[i].timestamp.getTime() >= fromTime) {
+            out.unshift(arr[i]);
           } else {
             break;
           }
         }
-
-        return { timestamps, values: vals };
+        return out;
       });
 
-      const resampled: number[][] = recentValues.map((v, i) => {
+      // Resample each signal to the EDF record length, then extract the numeric values
+      const resampled: number[][] = recentPerSignal.map((vals, i) => {
         const samples = samplesPerRecordList[i];
-        if (v.values.length === 0) return new Array(samples).fill(0);
-        const { values: resampledValues } = resample(v, samples);
-        return resampledValues;
+        if (vals.length === 0) return new Array(samples).fill(0);
+        const r = resample(vals, samples);
+        return r.map((v) => v.value);
       });
 
       await edfWriter.writeRecord(resampled);
@@ -105,7 +109,5 @@ export const startEDFWriterLoop = ({
     }
   }, EPOCH_DURATION_MS);
 
-  return () => {
-    clearInterval(interval);
-  };
+  return () => clearInterval(interval);
 };

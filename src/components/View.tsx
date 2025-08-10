@@ -49,13 +49,12 @@ export default function View() {
           const sampleRate = signal.samplesPerRecord / header.recordDuration;
           const raw = reader.readValues(signal.label);
 
-          const timestamps = raw.map(
-            (_, i) => header.startTime.getTime() + i * (1000 / sampleRate),
-          );
-          return {
-            timestamps,
-            values: raw,
-          };
+          return raw.map((value, i) => ({
+            timestamp: new Date(
+              header.startTime.getTime() + i * (1000 / sampleRate),
+            ),
+            value,
+          }));
         });
 
         setSignals(header.signals);

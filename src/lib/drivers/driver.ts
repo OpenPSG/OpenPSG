@@ -14,7 +14,7 @@
  */
 
 import type { EDFSignal } from "@/lib/edf/edftypes";
-import type { Value } from "@/lib/types";
+import type { Values } from "@/lib/types";
 
 export type ConfigValue = string | number | boolean | null;
 
@@ -44,5 +44,5 @@ export interface Driver {
   configure?(config: Record<string, ConfigValue>): void;
   close(): Promise<void>;
   signals(recordDuration: number): EDFSignal[];
-  values(): AsyncIterable<Value[]>;
+  values(): AsyncIterable<Values>;
 }

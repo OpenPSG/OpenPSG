@@ -22,7 +22,7 @@ import React, {
 } from "react";
 import PlotlyPlot from "react-plotly.js";
 import "./plot.css";
-import { lttb } from "@/lib/resampling/lttb";
+import { resample } from "@/lib/resampling/lttb";
 import ChannelConfigDialog from "./ChannelConfigDialog";
 import { binarySearch, parseRelayoutEvent } from "./utils";
 import type { EDFSignal } from "@/lib/edf/edftypes";
@@ -158,24 +158,24 @@ const Plot: React.FC<PlotProps> = ({
       return {};
     }
 
-    let minStart = Infinity;
-    let maxEnd = 0;
+    let minStart: Date | undefined = undefined;
+    let maxEnd = new Date(0);
 
     for (const series of values) {
-      if (!series || series.timestamps.length === 0) continue;
+      if (!series || series.length === 0) continue;
 
-      const first = series.timestamps[0];
-      const last = series.timestamps[series.timestamps.length - 1];
+      const first = series[0].timestamp;
+      const last = series[series.length - 1].timestamp;
 
-      if (first < minStart) minStart = first;
+      if (!minStart || first < minStart) minStart = first;
       if (last > maxEnd) maxEnd = last;
     }
 
-    if (minStart === Infinity) {
+    if (!minStart) {
       return {};
     }
 
-    return { startTime: new Date(minStart), endTime: new Date(maxEnd) };
+    return { startTime: minStart, endTime: maxEnd };
   }, [signals, values, revision]);
 
   const { xRange, plotlyXRange, throttledSetXRange } = useXRange(
@@ -184,17 +184,26 @@ const Plot: React.FC<PlotProps> = ({
   );
 
   useEffect(() => {
-    if (!followMode || endTime === undefined) return;
+    if (startTime === undefined || endTime === undefined) return;
 
-    const end = xRange !== undefined ? xRange[1] : 0;
-    if (endTime > end) {
-      const alignedEnd = new Date(
-        Math.ceil(endTime.getTime() / EPOCH_DURATION_MS) * EPOCH_DURATION_MS,
+    if (followMode) {
+      const end = xRange !== undefined ? xRange[1] : 0;
+      if (endTime > end) {
+        const alignedEnd = new Date(
+          Math.ceil(endTime.getTime() / EPOCH_DURATION_MS) * EPOCH_DURATION_MS,
+        );
+        const alignedStart = new Date(alignedEnd.getTime() - EPOCH_DURATION_MS);
+        throttledSetXRange(alignedStart, alignedEnd, true);
+      }
+    } else if (xRange === undefined) {
+      // Initial view for non-follow mode.
+      throttledSetXRange(
+        startTime,
+        new Date(startTime.getTime() + EPOCH_DURATION_MS),
+        true,
       );
-      const alignedStart = new Date(alignedEnd.getTime() - EPOCH_DURATION_MS);
-      throttledSetXRange(alignedStart, alignedEnd, true);
     }
-  }, [endTime, followMode, xRange, throttledSetXRange]);
+  }, [startTime, endTime, followMode, xRange, throttledSetXRange]);
 
   useKeyboardNavigation(
     plotWrapperRef,
@@ -253,7 +262,7 @@ const Plot: React.FC<PlotProps> = ({
 
     return signals.map((signal, index) => {
       const series = values[index];
-      if (!series || series.timestamps.length === 0) {
+      if (!series || series.length === 0) {
         return {
           x: [],
           y: [],
@@ -267,32 +276,24 @@ const Plot: React.FC<PlotProps> = ({
       }
 
       let lowerIndex = 0;
-      let upperIndex = series.timestamps.length - 1;
+      let upperIndex = series.length - 1;
 
       if (xRange) {
-        const lowerIndexRaw = binarySearch(series.timestamps, xRange[0]);
+        const lowerIndexRaw = binarySearch(series, xRange[0]);
         lowerIndex = Math.max(0, lowerIndexRaw + 1);
 
-        const upperIndexRaw = binarySearch(series.timestamps, xRange[1]);
-        upperIndex = Math.min(
-          series.timestamps.length - 1,
-          Math.max(upperIndexRaw, 0),
-        );
+        const upperIndexRaw = binarySearch(series, xRange[1]);
+        upperIndex = Math.min(series.length - 1, Math.max(upperIndexRaw, 0));
       }
 
-      const seriesRange: Values = {
-        timestamps: series.timestamps.slice(lowerIndex, upperIndex + 1),
-        values: series.values.slice(lowerIndex, upperIndex + 1),
-      };
-
-      const { timestamps: x, values: y } = lttb(seriesRange, 4000);
-
-      // TODO: use Date objects directly in the series
-      const xDates = x.map((t) => new Date(t));
+      const resampledSeries = resample(
+        series.slice(lowerIndex, upperIndex + 1),
+        4000,
+      );
 
       return {
-        x: xDates,
-        y,
+        x: resampledSeries.map((v) => v.timestamp),
+        y: resampledSeries.map((v) => v.value),
         type: "scattergl" as const,
         mode: "lines" as const,
         name: signal.label,

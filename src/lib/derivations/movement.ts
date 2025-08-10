@@ -18,7 +18,7 @@ import { IIRFilter } from "@/lib/filters/filter";
 import { calcCoeffs } from "@/lib/filters/cascade";
 
 export interface Movement {
-  timestamp: number; // ms since epoch
+  timestamp: Date;
   magnitude: number; // g
 }
 

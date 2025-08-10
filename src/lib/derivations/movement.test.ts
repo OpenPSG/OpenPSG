@@ -33,25 +33,25 @@ describe("deriveMovement", () => {
     // Sample data: constant acceleration in Z, small spike in X
     const sampleMeasurements: Measurement[] = [
       {
-        timestamp: 1000,
+        timestamp: new Date(1000),
         acceleration: [0, 0, 1],
         angularVelocity: [0, 0, 0],
         angle: [0, 0, 0],
       },
       {
-        timestamp: 1010,
+        timestamp: new Date(1010),
         acceleration: [0, 0, 1],
         angularVelocity: [0, 0, 0],
         angle: [0, 0, 0],
       },
       {
-        timestamp: 1020,
+        timestamp: new Date(1020),
         acceleration: [0.5, 0, 1],
         angularVelocity: [0, 0, 0],
         angle: [0, 0, 0],
       },
       {
-        timestamp: 1030,
+        timestamp: new Date(1030),
         acceleration: [0, 0, 1],
         angularVelocity: [0, 0, 0],
         angle: [0, 0, 0],

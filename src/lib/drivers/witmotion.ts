@@ -19,7 +19,7 @@ import type { EDFSignal } from "@/lib/edf/edftypes";
 import Channel from "@/lib/sync/channel";
 import { deriveBodyPosition } from "@/lib/derivations/body-position";
 import { deriveMovement } from "@/lib/derivations/movement";
-import type { Value } from "@/lib/types";
+import type { Values } from "@/lib/types";
 
 const Register = {
   /** Save the current configuration */
@@ -124,7 +124,7 @@ const RateMap: Record<number, number> = {
 };
 
 export interface Measurement {
-  timestamp: number; // ms since epoch
+  timestamp: Date;
   acceleration: [number, number, number];
   angularVelocity: [number, number, number];
   angle: [number, number, number];
@@ -370,7 +370,7 @@ export class WitMotionIMUDriver implements Driver {
     }
   }
 
-  async *values(): AsyncIterable<Value[]> {
+  async *values(): AsyncIterable<Values> {
     if (!this.measurementQueue) {
       throw new Error("Measurement queue is not initialized");
     }
@@ -452,7 +452,7 @@ export class WitMotionIMUDriver implements Driver {
 
     const view = new DataView(data.buffer);
     const measurement: Measurement = {
-      timestamp: Date.now(),
+      timestamp: new Date(),
       acceleration: [
         round((view.getInt16(2, true) / 32768) * 16, 4),
         round((view.getInt16(4, true) / 32768) * 16, 4),

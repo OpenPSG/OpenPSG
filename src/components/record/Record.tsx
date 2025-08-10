@@ -121,10 +121,7 @@ export default function Record() {
       const startIndex = signals.length;
 
       setSignals((prev) => [...prev, ...newSignals]);
-      valuesRef.current = [
-        ...valuesRef.current,
-        ...newSignals.map(() => ({ timestamps: [], values: [] })),
-      ];
+      valuesRef.current = [...valuesRef.current, ...newSignals.map(() => [])];
       setConfigureSensorDialogOpen(false);
 
       startStreaming(

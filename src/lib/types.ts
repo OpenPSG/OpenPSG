@@ -14,13 +14,8 @@
  */
 
 export interface Value {
-  timestamp: number; // ms since epoch
+  timestamp: Date;
   value: number;
 }
 
-// We use this type to represent a collection of values with their timestamps
-// We don't use a Value[] array here so we can reduce garbage collection overhead
-export interface Values {
-  timestamps: number[]; // ms since epoch
-  values: number[];
-}
+export type Values = Value[];

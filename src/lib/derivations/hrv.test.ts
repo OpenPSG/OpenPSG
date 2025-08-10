@@ -27,7 +27,7 @@ describe("deriveHRV", () => {
   it("yields a single result with HRV from valid RR intervals", async () => {
     const stream = makeMeasurementStream([
       {
-        timestamp: 0,
+        timestamp: new Date(0),
         heartRate: 75,
         rrIntervals: [0.8, 0.82, 0.81], // Valid RR values in seconds
       },
@@ -43,7 +43,7 @@ describe("deriveHRV", () => {
   it("ignores RR intervals that are too short or too long", async () => {
     const stream = makeMeasurementStream([
       {
-        timestamp: 0,
+        timestamp: new Date(0),
         heartRate: 75,
         rrIntervals: [0.1, 2.5, 0.8], // Only 0.8s is valid
       },
@@ -58,7 +58,7 @@ describe("deriveHRV", () => {
   it("ignores RR intervals with sudden jumps >250ms", async () => {
     const stream = makeMeasurementStream([
       {
-        timestamp: 0,
+        timestamp: new Date(0),
         heartRate: 75,
         rrIntervals: [0.8, 1.2], // 400ms jump
       },
@@ -72,9 +72,9 @@ describe("deriveHRV", () => {
 
   it("accumulates and computes HRV across multiple measurements", async () => {
     const stream = makeMeasurementStream([
-      { timestamp: 0, heartRate: 75, rrIntervals: [0.8] },
-      { timestamp: 1000, heartRate: 75, rrIntervals: [0.81] },
-      { timestamp: 2000, heartRate: 75, rrIntervals: [0.82] },
+      { timestamp: new Date(0), heartRate: 75, rrIntervals: [0.8] },
+      { timestamp: new Date(1000), heartRate: 75, rrIntervals: [0.81] },
+      { timestamp: new Date(2000), heartRate: 75, rrIntervals: [0.82] },
     ]);
 
     const iterator = deriveHRV(stream)[Symbol.asyncIterator]();
@@ -89,7 +89,7 @@ describe("deriveHRV", () => {
 
   it("yields measurements even without RR intervals", async () => {
     const stream = makeMeasurementStream([
-      { timestamp: 0, heartRate: 75, rrIntervals: [] },
+      { timestamp: new Date(0), heartRate: 75, rrIntervals: [] },
     ]);
 
     const iterator = deriveHRV(stream)[Symbol.asyncIterator]();

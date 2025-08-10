@@ -27,7 +27,7 @@ async function* makeMeasurementStream(measurements: Measurement[]) {
 describe("deriveBodyPosition", () => {
   it("computes correct roll and inclination for flat position", async () => {
     const measurement: Measurement = {
-      timestamp: 1000,
+      timestamp: new Date(1000),
       acceleration: [0, 0, 1],
       angularVelocity: [0, 0, 0],
       angle: [0, 0, 45], // flat orientation but yaw 45°
@@ -37,14 +37,14 @@ describe("deriveBodyPosition", () => {
     const iterator = stream[Symbol.asyncIterator]();
     const result = await iterator.next();
 
-    expect(result.value.timestamp).toBe(1000);
+    expect(result.value.timestamp).toBe(measurement.timestamp);
     expect(result.value.roll).toBeCloseTo(0, 1); // No roll
     expect(result.value.inclination).toBeCloseTo(0, 1); // Lying flat
   });
 
   it("computes roll when rotated along Y", async () => {
     const measurement: Measurement = {
-      timestamp: 2000,
+      timestamp: new Date(2000),
       acceleration: [0, 0, 1],
       angularVelocity: [0, 0, 0],
       angle: [0, 45, 0], // roll 45°
@@ -60,7 +60,7 @@ describe("deriveBodyPosition", () => {
 
   it("computes inclination when standing upright", async () => {
     const measurement: Measurement = {
-      timestamp: 3000,
+      timestamp: new Date(3000),
       acceleration: [0, 0, 1],
       angularVelocity: [0, 0, 0],
       angle: [90, 0, 0], // pitch 90° (standing up)
@@ -76,7 +76,7 @@ describe("deriveBodyPosition", () => {
 
   it("doesn't gimbal lock", async () => {
     const measurement: Measurement = {
-      timestamp: 4000,
+      timestamp: new Date(4000),
       acceleration: [0, 0, 1],
       angularVelocity: [0, 0, 0],
       angle: [-180, -45, 0], // roll -135° (upside down)

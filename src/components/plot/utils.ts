@@ -14,6 +14,7 @@
  */
 
 import { EPOCH_DURATION_MS } from "@/lib/constants";
+import type { Values } from "@/lib/types";
 
 export const parseRelayoutEvent = (
   e: Partial<Plotly.Layout>,
@@ -23,7 +24,7 @@ export const parseRelayoutEvent = (
     return undefined;
   }
 
-  if ((e["autosize"] || e["xaxis.autorange"]) && startTime !== undefined) {
+  if (e["xaxis.autorange"]) {
     return [startTime, new Date(startTime.getTime() + EPOCH_DURATION_MS)];
   }
 
@@ -48,12 +49,12 @@ export const parseRelayoutEvent = (
   return undefined;
 };
 
-export const binarySearch = (arr: number[], target: Date): number => {
+export const binarySearch = (arr: Values, target: Date): number => {
   let left = 0,
     right = arr.length;
   while (left < right) {
     const mid = (left + right) >> 1;
-    if (arr[mid] <= target.getTime()) {
+    if (arr[mid].timestamp <= target) {
       left = mid + 1;
     } else {
       right = mid;

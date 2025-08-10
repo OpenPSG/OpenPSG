@@ -42,7 +42,7 @@ const bodyInclination = (q: Quaternion): number => {
 };
 
 export interface BodyPosition {
-  timestamp: number; // ms since epoch
+  timestamp: Date;
   roll: number; // degrees
   inclination: number; // degrees
 }

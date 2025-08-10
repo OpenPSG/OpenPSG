@@ -15,13 +15,13 @@
 
 import Channel from "@/lib/sync/channel";
 import type { EDFSignal } from "@/lib/edf/edftypes";
-import type { Value } from "@/lib/types";
+import type { Values } from "@/lib/types";
 import { INT16_MIN, INT16_MAX } from "@/lib/constants";
 import { deriveHRV } from "../derivations/hrv";
 import type { Driver, ConfigField, ConfigValue } from "./driver";
 
 export interface Measurement {
-  timestamp: number; // ms since epoch
+  timestamp: Date;
   heartRate: number;
   sensorContact?: "detected" | "not detected";
   energyExpended?: number;
@@ -123,7 +123,7 @@ export class GenericHRDriver implements Driver {
     return signals;
   }
 
-  async *values(): AsyncIterable<Value[]> {
+  async *values(): AsyncIterable<Values> {
     if (!this.measurementQueue) {
       throw new Error("Measurement queue is not initialized");
     }
@@ -193,7 +193,7 @@ export class GenericHRDriver implements Driver {
     }
 
     const measurement: Measurement = {
-      timestamp: Date.now(),
+      timestamp: new Date(),
       heartRate,
       sensorContact,
       ...(energyExpended !== undefined && { energyExpended }),

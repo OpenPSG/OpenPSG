@@ -25,11 +25,11 @@ import {
 } from "vitest";
 import { startEDFWriterLoop, startStreaming } from "./utils";
 import type { EDFSignal } from "@/lib/edf/edftypes";
-import type { Value, Values } from "@/lib/types";
+import type { Values } from "@/lib/types";
 import { EPOCH_DURATION_MS } from "@/lib/constants";
 import type { Driver } from "@/lib/drivers/driver";
 
-function createMockDriver(values: Value[][]): Driver {
+function createMockDriver(values: Values[]): Driver {
   return {
     close: vi.fn(),
     signals: vi.fn(),
@@ -51,15 +51,15 @@ describe("startStreaming", () => {
   });
 
   it("streams and stores values", async () => {
-    const timestamp = Date.now();
+    const timestamp = new Date();
     mockDriver = createMockDriver([
       [
         { timestamp, value: 1 },
         { timestamp, value: 2 },
       ],
       [
-        { timestamp: timestamp + 100, value: 3 },
-        { timestamp: timestamp + 100, value: 4 },
+        { timestamp: new Date(timestamp.getTime() + 100), value: 3 },
+        { timestamp: new Date(timestamp.getTime() + 100), value: 4 },
       ],
     ]);
 
@@ -68,8 +68,14 @@ describe("startStreaming", () => {
     await new Promise((r) => setTimeout(r, 50)); // let streaming run
 
     expect(valuesRef.current.length).toBe(2);
-    expect(valuesRef.current[0].values).toEqual([1, 3]);
-    expect(valuesRef.current[1].values).toEqual([2, 4]);
+    expect(valuesRef.current[0]).toEqual([
+      { timestamp, value: 1 },
+      { timestamp: new Date(timestamp.getTime() + 100), value: 3 },
+    ]);
+    expect(valuesRef.current[1]).toEqual([
+      { timestamp, value: 2 },
+      { timestamp: new Date(timestamp.getTime() + 100), value: 4 },
+    ]);
   });
 
   it("handles stream errors", async () => {
@@ -126,14 +132,11 @@ describe("startEDFWriterLoop", () => {
   beforeEach(() => {
     valuesRef = {
       current: [
-        {
-          timestamps: [Date.now() - 1000, Date.now()],
-          values: [1, 2],
-        },
-        {
-          timestamps: [Date.now()],
-          values: [3],
-        },
+        [
+          { timestamp: new Date(Date.now() - 1000), value: 1 },
+          { timestamp: new Date(), value: 2 },
+        ],
+        [{ timestamp: new Date(), value: 3 }],
       ],
     };
 
@@ -199,10 +202,7 @@ describe("startEDFWriterLoop", () => {
 
   it("writes zero-filled records when no values are present", async () => {
     valuesRef = {
-      current: [
-        { timestamps: [], values: [] },
-        { timestamps: [], values: [] },
-      ],
+      current: [[], []],
     };
 
     stop = startEDFWriterLoop({

@@ -14,68 +14,75 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { lttb } from "./lttb";
+import { resample } from "./lttb";
 import type { Values } from "@/lib/types";
 
 describe("lttb", () => {
   const generateLinearSeries = (length: number): Values => {
-    return {
-      timestamps: Array.from({ length }, (_, i) => i * 1000),
-      values: Array.from({ length }, (_, i) => i),
-    };
+    return Array.from({ length }, (_, i) => ({
+      timestamp: new Date(i * 1000),
+      value: i,
+    }));
   };
 
   it("should return the same values if n >= length", () => {
     const values = generateLinearSeries(10);
-    const result = lttb(values, 10);
+    const result = resample(values, 10);
     expect(result).toEqual(values);
   });
 
   it("should return the same values if n < 3", () => {
     const values = generateLinearSeries(10);
-    const result = lttb(values, 2);
+    const result = resample(values, 2);
     expect(result).toEqual(values);
   });
 
   it("should reduce the number of points to n", () => {
     const values = generateLinearSeries(100);
     const n = 10;
-    const result = lttb(values, n);
-    expect(result.timestamps).toHaveLength(n);
-    expect(result.values).toHaveLength(n);
+    const result = resample(values, n);
+    expect(result).toHaveLength(n);
   });
 
   it("should always include the first and last point", () => {
     const values = generateLinearSeries(50);
-    const result = lttb(values, 5);
-    expect(result.timestamps[0]).toBe(values.timestamps[0]);
-    expect(result.timestamps[result.timestamps.length - 1]).toBe(
-      values.timestamps[values.timestamps.length - 1],
-    );
+    const result = resample(values, 5);
+    expect(result[0]).toEqual(values[0]);
+    expect(result[result.length - 1]).toEqual(values[values.length - 1]);
   });
 
   it("should preserve shape — detect peak", () => {
-    const values: Values = {
-      timestamps: [0, 1, 2, 3, 4, 5],
-      values: [0, 1, 10, 1, 0, -1], // Peak at index 2
-    };
-    const result = lttb(values, 4);
-    expect(result.values).toContain(10); // peak must be preserved
+    const values: Values = [
+      { timestamp: new Date(0), value: 0 },
+      { timestamp: new Date(1000), value: 1 },
+      { timestamp: new Date(2000), value: 10 },
+      { timestamp: new Date(3000), value: 1 },
+      { timestamp: new Date(4000), value: 0 },
+      { timestamp: new Date(5000), value: -1 },
+    ];
+    const result = resample(values, 4);
+    expect(result).toContainEqual({ timestamp: new Date(2000), value: 10 }); // peak must be preserved
   });
 
   it("should preserve shape — detect valley", () => {
-    const values: Values = {
-      timestamps: [0, 1, 2, 3, 4, 5],
-      values: [10, 9, 0, 9, 10, 11], // Valley at index 2
-    };
-    const result = lttb(values, 4);
-    expect(result.values).toContain(0); // valley must be preserved
+    const values: Values = [
+      { timestamp: new Date(0), value: 10 },
+      { timestamp: new Date(1000), value: 9 },
+      { timestamp: new Date(2000), value: 0 },
+      { timestamp: new Date(3000), value: 9 },
+      { timestamp: new Date(4000), value: 10 },
+      { timestamp: new Date(5000), value: 11 },
+    ];
+    const result = resample(values, 4);
+    expect(result).toContainEqual({ timestamp: new Date(2000), value: 0 }); // valley must be preserved
   });
 
   it("should return increasing timestamps", () => {
     const values = generateLinearSeries(30);
-    const result = lttb(values, 10);
-    const sorted = [...result.timestamps].sort((a, b) => a - b);
-    expect(result.timestamps).toEqual(sorted); // timestamps should stay sorted
+    const result = resample(values, 10);
+    const sorted = [...result].sort(
+      (a, b) => a.timestamp.getTime() - b.timestamp.getTime(),
+    );
+    expect(result).toEqual(sorted); // timestamps should stay sorted
   });
 });
