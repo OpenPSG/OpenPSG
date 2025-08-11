@@ -33,7 +33,8 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Info } from "lucide-react";
-import { KLLSketch } from "@/lib/kll/kll";
+import { resample } from "@/lib/resampling/lttb";
+import { percentile } from "@/lib/algorithms/quickselect";
 
 export interface ChannelConfigModalProps {
   open: boolean;
@@ -87,17 +88,15 @@ const ChannelConfigDialog: React.FC<ChannelConfigModalProps> = ({
       return;
     }
 
-    // Create a KLL sketch for approximate quantiles.
-    const sketch = new KLLSketch({ k: 256, c: 2 / 3 });
+    // Reduce the number of values to speed up percentile calculation
+    const downsampled = resample(values, 5000);
 
-    // Feed data values into the sketch
-    values.forEach((value) => {
-      sketch.add(value.value);
-    });
+    // Convert to raw values for percentile calculation
+    const downsampledValues = downsampled.map((v) => v.value);
 
-    // Get approximate 1st and 99th percentiles
-    const low = sketch.quantile(0.01);
-    const high = sketch.quantile(0.99);
+    // Get 1st and 99th percentiles
+    const low = percentile(downsampledValues, 0.01);
+    const high = percentile(downsampledValues, 0.99);
 
     // Clamp values to the physical range of the signal
     const clamp = (x: number) =>
