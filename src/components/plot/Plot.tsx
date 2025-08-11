@@ -366,7 +366,7 @@ const Plot: React.FC<PlotProps> = ({
           pad: { r: 0, t: 0 },
           buttons: [
             {
-              label: `${signal.label} (${signal.physicalDimension})`,
+              label: `${signal.label}${signal.physicalDimension !== "" ? ` (${signal.physicalDimension})` : ""}`,
               method: "relayout",
               args: [{ label: signal.label } as ButtonClickEvent],
               execute: true,

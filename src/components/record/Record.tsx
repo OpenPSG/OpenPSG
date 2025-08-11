@@ -16,7 +16,7 @@
 import { useCallback, useState, useEffect, useRef } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Plus, Circle, Square } from "lucide-react";
+import { Plus, Circle, Square, Mic } from "lucide-react";
 import Plot from "@/components/plot/Plot";
 import {
   AlertDialog,
@@ -45,6 +45,7 @@ import FullPageSpinner from "@/components/FullPageSpinner";
 import { MemoryWritableStream } from "@/lib/stream";
 import { startStreaming, startEDFWriterLoop } from "./utils";
 import { CircularBuffer } from "@/lib/containers/circular-buffer";
+import { SnoreMicDriver } from "@/lib/drivers/snore-mic";
 
 const VALUE_RETENTION_MS = 5 * 60 * 1000; // 5 minutes
 
@@ -172,6 +173,22 @@ export default function Record() {
     }
   };
 
+  const handleAddSnoreMic = async () => {
+    try {
+      if (sensorsRef.current.some((d) => d instanceof SnoreMicDriver)) {
+        setError("Snore mic is already added.");
+        return;
+      }
+      const driver = new SnoreMicDriver();
+      sensorsRef.current.push(driver);
+      // No config; immediately complete
+      await handleSensorConfigComplete(true, undefined, driver);
+    } catch (err) {
+      const errMsg = err instanceof Error ? err.message : String(err);
+      setError("Unable to access microphone: " + errMsg);
+    }
+  };
+
   const bufferGetterRef =
     useRef<() => Promise<Uint8Array> | undefined>(undefined);
 
@@ -270,10 +287,26 @@ export default function Record() {
 
       <Card className="flex flex-col flex-grow w-full h-full mx-auto shadow-xl p-4 gap-2">
         <div className="flex justify-between items-center">
-          <Button variant="outline" onClick={handleAddSensor}>
-            <Plus className="w-4 h-4 mr-2" />
-            Add Sensor
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              onClick={handleAddSensor}
+              disabled={isConnecting}
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Add Sensor
+            </Button>
+
+            <Button
+              variant="outline"
+              onClick={handleAddSnoreMic}
+              disabled={isConnecting}
+              aria-label="Add Snore"
+            >
+              <Mic className="w-4 h-4 mr-2" />
+              Add Snore
+            </Button>
+          </div>
 
           <Button
             variant={recording ? "destructive" : "default"}
