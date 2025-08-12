@@ -18,7 +18,7 @@ import type { EDFSignal } from "@/lib/edf/edftypes";
 import type { Value, Values } from "@/lib/types";
 import { INT16_MIN, INT16_MAX } from "@/lib/constants";
 import type { Driver, ConfigField, ConfigValue } from "./driver";
-import SnoreProcessorSource from "./snore-processor.js?raw";
+import DownsampleProcessorSource from "./internal/downsample-processor.js?raw";
 
 export class SnoreMicDriver implements Driver {
   private ctx?: AudioContext;
@@ -30,40 +30,39 @@ export class SnoreMicDriver implements Driver {
   private running = false;
   private queue?: Channel<Value>;
 
-  // Internal defaults
-  private readonly outputRate = 10; // Envelope sampling frequency (Hz)
+  // Output: 400 samples per second (waveform)
+  private readonly outputRate = 400;
+
+  // Front-end band limits before downsampling
   private readonly hpCut = 20; // Hz
-  private readonly lpCut = 300; // Hz
+  private readonly lpCut = 200; // Hz (Nyquist for 400 sps)
   private readonly butterQ = 0.707; // ~Butterworth
 
   // Timestamp mapping anchors
   private t0Audio?: number;
   private t0WallMs?: number;
-  private lastWallTsMs?: number; // monotonic clamp
+  private lastWallTsMs?: number;
 
   configSchema: ConfigField[] = [];
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  configure(_config: Record<string, ConfigValue>): void {
-    // No configurable settings for now
-  }
+  configure(_config: Record<string, ConfigValue>): void {}
 
   signals(recordDuration: number): EDFSignal[] {
     return [
       {
         label: "Snore",
         transducerType: "mic",
-        physicalDimension: "dB",
-        physicalMin: -120,
-        physicalMax: 0,
+        physicalDimension: "",
+        physicalMin: -1,
+        physicalMax: 1,
         digitalMin: INT16_MIN,
         digitalMax: INT16_MAX,
-        prefiltering: "HP:20Hz LP:300Hz",
+        prefiltering: "HP:20Hz LP:200Hz",
         samplesPerRecord: Math.max(
           1,
           Math.round(this.outputRate * recordDuration),
         ),
-        reserved: "",
       },
     ];
   }
@@ -75,9 +74,7 @@ export class SnoreMicDriver implements Driver {
 
     const queue = this.queue!;
     try {
-      for await (const value of queue) {
-        yield [value];
-      }
+      for await (const value of queue) yield [value];
     } finally {
       await this.close();
     }
@@ -135,7 +132,7 @@ export class SnoreMicDriver implements Driver {
     this.ctx = new (window.AudioContext ||
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (window as any).webkitAudioContext)();
-    await this.ctx.resume(); // nudge contexts that start suspended
+    await this.ctx.resume();
     this.source = this.ctx.createMediaStreamSource(this.mediaStream);
 
     // High-pass @ 20 Hz
@@ -144,14 +141,14 @@ export class SnoreMicDriver implements Driver {
     this.hp.frequency.value = this.hpCut;
     this.hp.Q.value = this.butterQ;
 
-    // Low-pass @ 300 Hz
+    // Low-pass @ 200 Hz (anti-alias for 400 sps)
     this.lp = this.ctx.createBiquadFilter();
     this.lp.type = "lowpass";
     this.lp.frequency.value = this.lpCut;
     this.lp.Q.value = this.butterQ;
 
-    // Load worklet from imported string via Blob (and revoke the URL afterwards)
-    const blob = new Blob([SnoreProcessorSource], {
+    // Load worklet from imported string via Blob
+    const blob = new Blob([DownsampleProcessorSource], {
       type: "application/javascript",
     });
     const workletUrl = URL.createObjectURL(blob);
@@ -162,28 +159,28 @@ export class SnoreMicDriver implements Driver {
     }
 
     // Use 1 dummy output for broader compatibility
-    this.worklet = new AudioWorkletNode(this.ctx, "snore", {
+    this.worklet = new AudioWorkletNode(this.ctx, "downsample", {
       numberOfInputs: 1,
       numberOfOutputs: 1,
       outputChannelCount: [1],
       channelCountMode: "explicit",
       channelInterpretation: "speakers",
-      processorOptions: { outputRate: this.outputRate },
+      processorOptions: { targetRate: this.outputRate },
     });
 
     // Anchor times for wallclock conversion
     this.t0Audio = this.ctx.currentTime;
     this.t0WallMs = Date.now();
-
-    // Mark running before messages can arrive
     this.running = true;
 
-    // Handle processor messages (ignore if torn down)
     this.worklet.port.onmessage = (e: MessageEvent) => {
       if (!this.running) return;
-      const { audioTime, dbfs } = e.data as { audioTime: number; dbfs: number };
+      const { audioTime, value } = e.data as {
+        audioTime: number;
+        value: number;
+      };
       const ts = this.wallclockFromAudioTime(audioTime);
-      this.queue?.push({ timestamp: ts, value: dbfs });
+      this.queue?.push({ timestamp: ts, value });
     };
 
     // Mic → HP → LP → Worklet (output is unused)
@@ -193,7 +190,7 @@ export class SnoreMicDriver implements Driver {
   }
 
   private wallclockFromAudioTime(audioTime: number): Date {
-    // Best path: map using AudioContext->Performance timestamp, then adjust to now.
+    // Map AudioContext time to wall clock, with monotonic clamp
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const anyCtx = this.ctx as any;
     let ms: number | undefined;
@@ -205,9 +202,7 @@ export class SnoreMicDriver implements Driver {
         const skewMs = perfNow - performanceTime;
         ms = Date.now() - skewMs + (audioTime - contextTime) * 1000;
       } catch {
-        console.warn(
-          "getOutputTimestamp failed, falling back to manual mapping",
-        );
+        // fall through
       }
     }
 
@@ -216,15 +211,11 @@ export class SnoreMicDriver implements Driver {
       this.t0Audio !== undefined &&
       this.t0WallMs !== undefined
     ) {
-      // Simple, drift-free mapping against the audio clock anchor.
       ms = this.t0WallMs + (audioTime - this.t0Audio) * 1000;
     }
 
-    if (ms === undefined) {
-      ms = Date.now();
-    }
+    if (ms === undefined) ms = Date.now();
 
-    // Monotonic clamp to avoid backsliding due to small jitters
     if (this.lastWallTsMs !== undefined && ms < this.lastWallTsMs) {
       ms = this.lastWallTsMs;
     }

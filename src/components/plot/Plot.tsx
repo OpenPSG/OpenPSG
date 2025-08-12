@@ -279,17 +279,33 @@ const Plot: React.FC<PlotProps> = ({
       let upperIndex = series.length - 1;
 
       if (xRange) {
-        const lowerIndexRaw = binarySearch(series, xRange[0]);
-        lowerIndex = Math.max(0, lowerIndexRaw + 1);
+        // In follow mode the lowerIndex should be 30s before the current time (upperIndex)
+        // We do this to avoid visual glitches from downsampling inconsistent windows.
+        if (followMode) {
+          const thirtySecondsBeforeEnd = new Date(
+            xRange[1].getTime() - EPOCH_DURATION_MS,
+          );
+          const lowerIndexRaw = binarySearch(series, thirtySecondsBeforeEnd);
+          lowerIndex = Math.max(0, lowerIndexRaw + 1);
+        } else {
+          const lowerIndexRaw = binarySearch(series, xRange[0]);
+          lowerIndex = Math.max(0, lowerIndexRaw + 1);
+        }
 
         const upperIndexRaw = binarySearch(series, xRange[1]);
         upperIndex = Math.min(series.length - 1, Math.max(upperIndexRaw, 0));
       }
 
-      const resampledSeries = resample(
+      let resampledSeries = resample(
         series.slice(lowerIndex, upperIndex + 1),
         4000,
       );
+
+      // In follow mode discard values that are older than xRange[0]
+      if (followMode && xRange) {
+        const lowerIndexRaw = binarySearch(resampledSeries, xRange[0]);
+        resampledSeries = resampledSeries.slice(Math.max(0, lowerIndexRaw + 1));
+      }
 
       return {
         x: resampledSeries.map((v) => v.timestamp),
@@ -302,7 +318,7 @@ const Plot: React.FC<PlotProps> = ({
         hovertemplate: `<b>${signal.label}</b><br>Time: %{x|%H:%M:%S}<br>Value: %{y:.2f} ${signal.physicalDimension}<extra></extra>`,
       };
     });
-  }, [signals, values, xRange, revision]);
+  }, [signals, values, xRange, revision, followMode]);
 
   const layout: Partial<Plotly.Layout> | undefined = useMemo(() => {
     if (signals.length !== yAxisRanges.length) return undefined;
