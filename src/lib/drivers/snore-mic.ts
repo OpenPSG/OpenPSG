@@ -51,9 +51,11 @@ export class SnoreMicDriver implements Driver {
   configSchema: ConfigField[] = [
     {
       name: "notchEnabled",
-      label: "Mains Notch Filter",
+      label: "Mains Hum Filter",
       type: "boolean",
       defaultValue: true,
+      description:
+        "Reduce mains hum interference."
     },
     {
       name: "mainsHz",
@@ -66,7 +68,7 @@ export class SnoreMicDriver implements Driver {
       defaultValue: 50,
       visibleIf: [{ conditions: [{ field: "notchEnabled", value: true }] }],
       description:
-        "Select your local mains frequency (50Hz in Europe, 60Hz in the US).",
+        "Your local mains frequency (50Hz in EU, 60Hz in US).",
     },
   ];
 
