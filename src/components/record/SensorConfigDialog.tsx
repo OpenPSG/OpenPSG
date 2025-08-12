@@ -144,7 +144,10 @@ const SensorConfigDialog: React.FC<SensorConfigDialogProps> = ({
                     </SelectTrigger>
                     <SelectContent>
                       {field.options?.map((option) => (
-                        <SelectItem key={option.value} value={option.value}>
+                        <SelectItem
+                          key={String(option.value)}
+                          value={String(option.value)}
+                        >
                           {option.label}
                         </SelectItem>
                       ))}

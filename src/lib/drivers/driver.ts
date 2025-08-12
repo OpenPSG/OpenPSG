@@ -31,7 +31,7 @@ export type ConfigField = {
   label: string;
   type: "number" | "text" | "select" | "boolean";
   defaultValue?: ConfigValue;
-  options?: { value: string; label: string }[];
+  options?: { value: ConfigValue; label: string }[];
   required?: boolean;
   maxLength?: number;
   minLength?: number;

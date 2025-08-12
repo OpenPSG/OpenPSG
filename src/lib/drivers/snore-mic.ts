@@ -15,7 +15,7 @@
 
 import Channel from "@/lib/sync/channel";
 import type { EDFSignal } from "@/lib/edf/edftypes";
-import type { Value, Values } from "@/lib/types";
+import type { Values } from "@/lib/types";
 import { INT16_MIN, INT16_MAX } from "@/lib/constants";
 import type { Driver, ConfigField, ConfigValue } from "./driver";
 import DownsampleProcessorSource from "./internal/downsample-processor.js?raw";
@@ -24,29 +24,58 @@ export class SnoreMicDriver implements Driver {
   private ctx?: AudioContext;
   private mediaStream?: MediaStream;
   private source?: MediaStreamAudioSourceNode;
-  private hp?: BiquadFilterNode;
+  private notch?: BiquadFilterNode;
   private lp?: BiquadFilterNode;
   private worklet?: AudioWorkletNode;
+  private mutedSink?: GainNode;
   private running = false;
-  private queue?: Channel<Value>;
+  private queue?: Channel<Values>; // chunked output
 
-  // Output: 400 samples per second (waveform)
-  private readonly outputRate = 400;
+  // Output: 500 samples per second (waveform)
+  private readonly outputRate = 500; // Hz
 
   // Front-end band limits before downsampling
-  private readonly hpCut = 20; // Hz
-  private readonly lpCut = 200; // Hz (Nyquist for 400 sps)
+  private readonly lpCut = this.outputRate / 2; // Hz (Nyquist)
   private readonly butterQ = 0.707; // ~Butterworth
+
+  // Notch config (can be overridden via configure)
+  private notchEnabled = true;
+  private mainsHz: 50 | 60 = 50;
+  private notchQ = 20;
 
   // Timestamp mapping anchors
   private t0Audio?: number;
   private t0WallMs?: number;
   private lastWallTsMs?: number;
 
-  configSchema: ConfigField[] = [];
+  configSchema: ConfigField[] = [
+    {
+      name: "notchEnabled",
+      label: "Mains Notch Filter",
+      type: "boolean",
+      defaultValue: true,
+    },
+    {
+      name: "mainsHz",
+      label: "Mains Frequency",
+      type: "select",
+      options: [
+        { value: 50, label: "50 Hz" },
+        { value: 60, label: "60 Hz" },
+      ],
+      defaultValue: 50,
+      visibleIf: [{ conditions: [{ field: "notchEnabled", value: true }] }],
+      description:
+        "Select your local mains frequency (50Hz in Europe, 60Hz in the US).",
+    },
+  ];
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  configure(_config: Record<string, ConfigValue>): void {}
+  configure(config: Record<string, ConfigValue>): void {
+    if (config.notchEnabled !== undefined)
+      this.notchEnabled = !!config.notchEnabled;
+    if (config.mainsHz === 50 || config.mainsHz === 60)
+      this.mainsHz = config.mainsHz;
+  }
 
   signals(recordDuration: number): EDFSignal[] {
     return [
@@ -58,23 +87,26 @@ export class SnoreMicDriver implements Driver {
         physicalMax: 1,
         digitalMin: INT16_MIN,
         digitalMax: INT16_MAX,
-        prefiltering: "HP:20Hz LP:200Hz",
-        samplesPerRecord: Math.max(
-          1,
-          Math.round(this.outputRate * recordDuration),
-        ),
+        prefiltering: this.notchEnabled
+          ? `LP:${this.lpCut}Hz N:${this.mainsHz}Hz`
+          : `LP:${this.lpCut}Hz`,
+        samplesPerRecord: Math.round(this.outputRate * recordDuration),
       },
     ];
   }
 
   async *values(): AsyncIterable<Values> {
     if (this.running) throw new Error("SnoreMicDriver is already running");
-    this.queue = new Channel<Value>();
+    this.queue = new Channel<Values>();
     await this.setupAudio();
 
     const queue = this.queue!;
     try {
-      for await (const value of queue) yield [value];
+      for await (const chunk of queue) {
+        for (const v of chunk) {
+          yield [v];
+        }
+      }
     } finally {
       await this.close();
     }
@@ -86,8 +118,9 @@ export class SnoreMicDriver implements Driver {
     try {
       if (this.worklet) this.worklet.port.onmessage = null;
       this.worklet?.disconnect();
+      this.mutedSink?.disconnect();
       this.lp?.disconnect();
-      this.hp?.disconnect();
+      this.notch?.disconnect();
       this.source?.disconnect();
     } catch (e) {
       console.warn("Failed to disconnect audio nodes", e);
@@ -107,8 +140,9 @@ export class SnoreMicDriver implements Driver {
     }
 
     this.worklet = undefined;
-    this.hp = undefined;
+    this.mutedSink = undefined;
     this.lp = undefined;
+    this.notch = undefined;
     this.source = undefined;
     this.mediaStream = undefined;
     this.t0Audio = undefined;
@@ -135,13 +169,15 @@ export class SnoreMicDriver implements Driver {
     await this.ctx.resume();
     this.source = this.ctx.createMediaStreamSource(this.mediaStream);
 
-    // High-pass @ 20 Hz
-    this.hp = this.ctx.createBiquadFilter();
-    this.hp.type = "highpass";
-    this.hp.frequency.value = this.hpCut;
-    this.hp.Q.value = this.butterQ;
+    // Optional mains notch (band-stop)
+    if (this.notchEnabled) {
+      this.notch = this.ctx.createBiquadFilter();
+      this.notch.type = "notch";
+      this.notch.frequency.value = this.mainsHz; // 50 or 60 Hz
+      this.notch.Q.value = this.notchQ; // narrow notch
+    }
 
-    // Low-pass @ 200 Hz (anti-alias for 400 sps)
+    // Low-pass antialiasing filter
     this.lp = this.ctx.createBiquadFilter();
     this.lp.type = "lowpass";
     this.lp.frequency.value = this.lpCut;
@@ -158,7 +194,7 @@ export class SnoreMicDriver implements Driver {
       URL.revokeObjectURL(workletUrl);
     }
 
-    // Use 1 dummy output for broader compatibility
+    // Create worklet. Keep one muted output so engines reliably pull the graph.
     this.worklet = new AudioWorkletNode(this.ctx, "downsample", {
       numberOfInputs: 1,
       numberOfOutputs: 1,
@@ -168,29 +204,54 @@ export class SnoreMicDriver implements Driver {
       processorOptions: { targetRate: this.outputRate },
     });
 
+    this.worklet.port.postMessage({ targetRate: this.outputRate });
+
     // Anchor times for wallclock conversion
     this.t0Audio = this.ctx.currentTime;
     this.t0WallMs = Date.now();
     this.running = true;
 
+    // Fixed step at output rate; chunking is done in the worklet (≈100 ms)
+    const dtMs = 1000 / this.outputRate;
+
     this.worklet.port.onmessage = (e: MessageEvent) => {
       if (!this.running) return;
-      const { audioTime, value } = e.data as {
-        audioTime: number;
-        value: number;
-      };
-      const ts = this.wallclockFromAudioTime(audioTime);
-      this.queue?.push({ timestamp: ts, value });
+
+      const data = e.data as
+        | { audioTime0: number; values: Float32Array }
+        | { audioTime: number; value: number };
+
+      if ("audioTime0" in data && "values" in data) {
+        const { audioTime0, values } = data;
+        const ms0 = this.wallclockFromAudioTime(audioTime0).getTime();
+
+        const out: Values = new Array(values.length);
+        for (let i = 0; i < values.length; i++) {
+          out[i] = { timestamp: new Date(ms0 + i * dtMs), value: values[i] };
+        }
+        this.queue?.push(out);
+      } else {
+        const { audioTime, value } = data;
+        const ts = this.wallclockFromAudioTime(audioTime);
+        this.queue?.push([{ timestamp: ts, value }]);
+      }
     };
 
-    // Mic → HP → LP → Worklet (output is unused)
-    this.source.connect(this.hp);
-    this.hp.connect(this.lp);
+    // Wire up: Mic → (Notch) → LP → Worklet → (muted) Gain → Destination
+    if (this.notch) {
+      this.source.connect(this.notch);
+      this.notch.connect(this.lp);
+    } else {
+      this.source.connect(this.lp);
+    }
     this.lp.connect(this.worklet);
+
+    this.mutedSink = this.ctx.createGain();
+    this.mutedSink.gain.value = 0;
+    this.worklet.connect(this.mutedSink).connect(this.ctx.destination);
   }
 
   private wallclockFromAudioTime(audioTime: number): Date {
-    // Map AudioContext time to wall clock, with monotonic clamp
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const anyCtx = this.ctx as any;
     let ms: number | undefined;

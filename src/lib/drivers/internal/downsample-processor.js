@@ -13,43 +13,76 @@
  * later version. See <https://www.gnu.org/licenses/agpl-3.0.html> for details.
  */
 
-// AudioWorkletProcessor that downsamples a mono input stream to `targetRate`
-// (e.g., 400 sps). Assumes the main thread has anti-aliased the input
-// (e.g., LP @ 200 Hz) before this node.
-// It uses precise, time-based linear interpolation to place sample times
-// on the AudioContext clock.
-
 class DownsampleProcessor extends AudioWorkletProcessor {
   constructor(options) {
     super();
-    this.fs = sampleRate; // AudioWorklet global
-    this.targetRate = options?.processorOptions?.targetRate || 400;
 
-    // Next output time (in source-sample units since context start)
+    // Sample rate of the audio rendering context
+    this.fs = sampleRate;
+
+    // Default to 500 Hz; allow override via processorOptions or port
+    this.targetRate =
+      (options &&
+        options.processorOptions &&
+        options.processorOptions.targetRate) ??
+      500;
+
     this.nextOutSample = 0;
-
-    // Last sample for cross-block interpolation
     this.prevSample = 0;
     this.havePrev = false;
 
-    // Step between output samples in source-sample units
+    this._recomputeStepAndChunk(false);
+
+    // Robust cross-browser configuration: accept targetRate via port
+    this.port.onmessage = (e) => {
+      const { targetRate } = e.data || {};
+      if (typeof targetRate === "number" && targetRate > 0) {
+        this.targetRate = targetRate;
+        this._recomputeStepAndChunk(true);
+      }
+    };
+  }
+
+  _recomputeStepAndChunk(preserveState = true) {
     this.step = this.fs / this.targetRate;
+    const newChunk = Math.max(1, Math.round(this.targetRate * 0.1)); // ~100 ms
+    if (!preserveState || newChunk !== this.SAMPLES_PER_CHUNK) {
+      this.SAMPLES_PER_CHUNK = newChunk;
+      this.buf = new Float32Array(this.SAMPLES_PER_CHUNK);
+      this.bufLen = 0;
+      this.firstOutTime = 0;
+    }
+  }
+
+  flushChunk() {
+    // must be exactly one 100 ms chunk
+    if (this.bufLen !== this.SAMPLES_PER_CHUNK) return;
+    const out = this.buf.slice(0, this.bufLen);
+    this.port.postMessage({ audioTime0: this.firstOutTime, values: out }, [
+      out.buffer,
+    ]);
+    this.bufLen = 0;
+  }
+
+  enqueue(value, audioTime) {
+    if (this.bufLen === 0) this.firstOutTime = audioTime;
+    this.buf[this.bufLen++] = value;
+    if (this.bufLen === this.SAMPLES_PER_CHUNK) this.flushChunk();
   }
 
   process(inputs) {
     const input = inputs?.[0];
     if (!input || input.length === 0) return true;
 
-    const ch = input[0]; // mono
+    const ch = input[0];
     const frames = ch.length;
     if (frames === 0) return true;
 
-    const blockStart = currentFrame; // absolute sample index of first frame
+    const blockStart = currentFrame;
 
-    // Initialize on first block so we emit at t=0
     if (!this.havePrev) {
       this.havePrev = true;
-      this.nextOutSample = blockStart; // start emitting immediately
+      this.nextOutSample = blockStart;
       this.prevSample = ch[0] ?? 0;
     }
 
@@ -57,28 +90,20 @@ class DownsampleProcessor extends AudioWorkletProcessor {
       const globalIndex = blockStart + i;
       const s1 = ch[i];
 
-      // Emit any scheduled outputs that fall in (globalIndex-1, globalIndex]
       while (this.nextOutSample <= globalIndex) {
         const leftIndex = globalIndex - 1;
         const s0 = i > 0 ? ch[i - 1] : this.prevSample;
-
-        // Fractional position of nextOutSample within [leftIndex, globalIndex]
         const frac = Math.min(1, Math.max(0, this.nextOutSample - leftIndex));
         const value = s0 + (s1 - s0) * frac;
-
         const audioTime = this.nextOutSample / this.fs;
 
-        this.port.postMessage({ audioTime, value });
-
+        this.enqueue(value, audioTime);
         this.nextOutSample += this.step;
       }
     }
 
-    // Save tail for next block interpolation
     this.prevSample = ch[frames - 1];
-
-    // Pass-through silent dummy output
-    return true;
+    return true; // no end-of-block flush; keeps 100 ms chunking exact
   }
 }
 

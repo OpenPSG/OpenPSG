@@ -181,8 +181,13 @@ export default function Record() {
       }
       const driver = new SnoreMicDriver();
       sensorsRef.current.push(driver);
-      // No config; immediately complete
-      await handleSensorConfigComplete(true, undefined, driver);
+      setActiveSensor(driver);
+
+      if (!driver.configSchema || driver.configSchema.length === 0) {
+        await handleSensorConfigComplete(true, undefined, driver);
+      } else {
+        setConfigureSensorDialogOpen(true);
+      }
     } catch (err) {
       const errMsg = err instanceof Error ? err.message : String(err);
       setError("Unable to access microphone: " + errMsg);
