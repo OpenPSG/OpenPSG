@@ -245,6 +245,9 @@ export class SnoreMicDriver implements Driver {
   private wallclockFromAudioTime(audioTime: number): Date {
     // Map audio context time to wall-clock using getOutputTimestamp()
     const { contextTime, performanceTime } = this.ctx!.getOutputTimestamp();
+    if (contextTime === undefined || performanceTime === undefined) {
+      throw new Error("Audio context output timestamp is required");
+    }
 
     // performanceTime shares the time origin with performance.now()
     const skewMs = performance.now() - performanceTime;
