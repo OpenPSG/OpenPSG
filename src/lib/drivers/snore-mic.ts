@@ -43,9 +43,7 @@ export class SnoreMicDriver implements Driver {
   private mainsHz: 50 | 60 = 50;
   private notchQ = 20;
 
-  // Timestamp mapping anchors
-  private t0Audio?: number;
-  private t0WallMs?: number;
+  // Timestamp monotonicity guard
   private lastWallTsMs?: number;
 
   configSchema: ConfigField[] = [
@@ -54,8 +52,7 @@ export class SnoreMicDriver implements Driver {
       label: "Mains Hum Filter",
       type: "boolean",
       defaultValue: true,
-      description:
-        "Reduce mains hum interference."
+      description: "Reduce mains hum interference.",
     },
     {
       name: "mainsHz",
@@ -67,8 +64,7 @@ export class SnoreMicDriver implements Driver {
       ],
       defaultValue: 50,
       visibleIf: [{ conditions: [{ field: "notchEnabled", value: true }] }],
-      description:
-        "Your local mains frequency (50Hz in EU, 60Hz in US).",
+      description: "Your local mains frequency (50Hz in EU, 60Hz in US).",
     },
   ];
 
@@ -147,8 +143,6 @@ export class SnoreMicDriver implements Driver {
     this.notch = undefined;
     this.source = undefined;
     this.mediaStream = undefined;
-    this.t0Audio = undefined;
-    this.t0WallMs = undefined;
     this.lastWallTsMs = undefined;
     this.ctx = undefined;
     this.queue?.close();
@@ -165,9 +159,7 @@ export class SnoreMicDriver implements Driver {
       } as MediaTrackConstraints,
     });
 
-    this.ctx = new (window.AudioContext ||
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (window as any).webkitAudioContext)();
+    this.ctx = new AudioContext();
     await this.ctx.resume();
     this.source = this.ctx.createMediaStreamSource(this.mediaStream);
 
@@ -208,9 +200,6 @@ export class SnoreMicDriver implements Driver {
 
     this.worklet.port.postMessage({ targetRate: this.outputRate });
 
-    // Anchor times for wallclock conversion
-    this.t0Audio = this.ctx.currentTime;
-    this.t0WallMs = Date.now();
     this.running = true;
 
     // Fixed step at output rate; chunking is done in the worklet (≈100 ms)
@@ -254,31 +243,14 @@ export class SnoreMicDriver implements Driver {
   }
 
   private wallclockFromAudioTime(audioTime: number): Date {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const anyCtx = this.ctx as any;
-    let ms: number | undefined;
+    // Map audio context time to wall-clock using getOutputTimestamp()
+    const { contextTime, performanceTime } = this.ctx!.getOutputTimestamp();
 
-    if (anyCtx?.getOutputTimestamp) {
-      try {
-        const { contextTime, performanceTime } = anyCtx.getOutputTimestamp();
-        const perfNow = performance.now();
-        const skewMs = perfNow - performanceTime;
-        ms = Date.now() - skewMs + (audioTime - contextTime) * 1000;
-      } catch {
-        // fall through
-      }
-    }
+    // performanceTime shares the time origin with performance.now()
+    const skewMs = performance.now() - performanceTime;
+    let ms = Date.now() - skewMs + (audioTime - contextTime) * 1000;
 
-    if (
-      ms === undefined &&
-      this.t0Audio !== undefined &&
-      this.t0WallMs !== undefined
-    ) {
-      ms = this.t0WallMs + (audioTime - this.t0Audio) * 1000;
-    }
-
-    if (ms === undefined) ms = Date.now();
-
+    // Monotonic guard
     if (this.lastWallTsMs !== undefined && ms < this.lastWallTsMs) {
       ms = this.lastWallTsMs;
     }
