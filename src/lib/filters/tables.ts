@@ -21,7 +21,7 @@
  * SOFTWARE.
  */
 
-import type { FilterCharacteristic } from "./cascade";
+import type { FilterCharacteristic } from "./iir-coeffs";
 
 type CoefficientArray = number[][];
 

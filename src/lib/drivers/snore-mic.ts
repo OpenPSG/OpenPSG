@@ -18,14 +18,13 @@ import type { EDFSignal } from "@/lib/edf/edftypes";
 import type { Values } from "@/lib/types";
 import { INT16_MIN, INT16_MAX } from "@/lib/constants";
 import type { Driver, ConfigField, ConfigValue } from "./driver";
-import DownsampleProcessorSource from "./internal/downsample-processor.js?raw";
+import ResampleProcessorSource from "@/lib/resampling/webaudio.js?raw";
 
 export class SnoreMicDriver implements Driver {
   private ctx?: AudioContext;
   private mediaStream?: MediaStream;
   private source?: MediaStreamAudioSourceNode;
   private notch?: BiquadFilterNode;
-  private lp?: BiquadFilterNode;
   private worklet?: AudioWorkletNode;
   private mutedSink?: GainNode;
   private running = false;
@@ -33,10 +32,6 @@ export class SnoreMicDriver implements Driver {
 
   // Output: 500 samples per second (waveform)
   private readonly outputRate = 500; // Hz
-
-  // Front-end band limits before downsampling
-  private readonly lpCut = this.outputRate / 2; // Hz (Nyquist)
-  private readonly butterQ = 0.707; // ~Butterworth
 
   // Notch config (can be overridden via configure)
   private notchEnabled = true;
@@ -85,9 +80,7 @@ export class SnoreMicDriver implements Driver {
         physicalMax: 1,
         digitalMin: INT16_MIN,
         digitalMax: INT16_MAX,
-        prefiltering: this.notchEnabled
-          ? `LP:${this.lpCut}Hz N:${this.mainsHz}Hz`
-          : `LP:${this.lpCut}Hz`,
+        prefiltering: this.notchEnabled ? `N:${this.mainsHz}Hz` : "",
         samplesPerRecord: Math.round(this.outputRate * recordDuration),
       },
     ];
@@ -117,7 +110,6 @@ export class SnoreMicDriver implements Driver {
       if (this.worklet) this.worklet.port.onmessage = null;
       this.worklet?.disconnect();
       this.mutedSink?.disconnect();
-      this.lp?.disconnect();
       this.notch?.disconnect();
       this.source?.disconnect();
     } catch (e) {
@@ -139,7 +131,6 @@ export class SnoreMicDriver implements Driver {
 
     this.worklet = undefined;
     this.mutedSink = undefined;
-    this.lp = undefined;
     this.notch = undefined;
     this.source = undefined;
     this.mediaStream = undefined;
@@ -171,14 +162,8 @@ export class SnoreMicDriver implements Driver {
       this.notch.Q.value = this.notchQ; // narrow notch
     }
 
-    // Low-pass antialiasing filter
-    this.lp = this.ctx.createBiquadFilter();
-    this.lp.type = "lowpass";
-    this.lp.frequency.value = this.lpCut;
-    this.lp.Q.value = this.butterQ;
-
     // Load worklet from imported string via Blob
-    const blob = new Blob([DownsampleProcessorSource], {
+    const blob = new Blob([ResampleProcessorSource], {
       type: "application/javascript",
     });
     const workletUrl = URL.createObjectURL(blob);
@@ -189,13 +174,17 @@ export class SnoreMicDriver implements Driver {
     }
 
     // Create worklet. Keep one muted output so engines reliably pull the graph.
-    this.worklet = new AudioWorkletNode(this.ctx, "downsample", {
+    this.worklet = new AudioWorkletNode(this.ctx, "resample", {
       numberOfInputs: 1,
       numberOfOutputs: 1,
       outputChannelCount: [1],
       channelCountMode: "explicit",
       channelInterpretation: "speakers",
-      processorOptions: { targetRate: this.outputRate },
+      processorOptions: {
+        targetRate: this.outputRate, // any rate; ratio is approximated as L/M
+        tapsPerPhase: 24, // quality/speed
+        attenuationDb: 80, // stopband attenuation
+      },
     });
 
     this.worklet.port.postMessage({ targetRate: this.outputRate });
@@ -231,11 +220,10 @@ export class SnoreMicDriver implements Driver {
     // Wire up: Mic → (Notch) → LP → Worklet → (muted) Gain → Destination
     if (this.notch) {
       this.source.connect(this.notch);
-      this.notch.connect(this.lp);
+      this.notch.connect(this.worklet);
     } else {
-      this.source.connect(this.lp);
+      this.source.connect(this.worklet);
     }
-    this.lp.connect(this.worklet);
 
     this.mutedSink = this.ctx.createGain();
     this.mutedSink.gain.value = 0;

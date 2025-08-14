@@ -24,11 +24,12 @@ import PlotlyPlot from "react-plotly.js";
 import "./plot.css";
 import { resample } from "@/lib/resampling/lttb";
 import ChannelConfigDialog from "./ChannelConfigDialog";
-import { binarySearch, parseRelayoutEvent } from "./utils";
+import { parseRelayoutEvent } from "./utils";
 import type { EDFSignal } from "@/lib/edf/edftypes";
 import { EPOCH_DURATION_MS } from "@/lib/constants";
 import type { Values } from "@/lib/types";
 import throttle from "lodash/throttle";
+import { binarySearch } from "@/lib/alg/binarysearch";
 
 // How frequently to respond to x-axis range changes
 const XRANGE_UPDATE_INTERVAL = 100; // ms

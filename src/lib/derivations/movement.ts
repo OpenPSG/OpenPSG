@@ -14,8 +14,8 @@
  */
 
 import type { Measurement } from "@/lib/drivers/witmotion";
-import { IIRFilter } from "@/lib/filters/filter";
-import { calcCoeffs } from "@/lib/filters/cascade";
+import { IIRFilter } from "@/lib/filters/iir-filter";
+import { calcCoeffs } from "@/lib/filters/iir-coeffs";
 
 export interface Movement {
   timestamp: Date;

@@ -34,7 +34,7 @@ import {
 } from "@/components/ui/tooltip";
 import { Info } from "lucide-react";
 import { resample } from "@/lib/resampling/lttb";
-import { percentile } from "@/lib/algorithms/quickselect";
+import { percentile } from "@/lib/alg/quickselect";
 
 export interface ChannelConfigModalProps {
   open: boolean;

@@ -23,7 +23,7 @@
 
 import { runMultiFilter, runMultiFilterReverse, evaluatePhase } from "./utils";
 import { Complex } from "./complex";
-import type { FilterCoeffs } from "./coeffs";
+import type { FilterCoeffs } from "./iir-coeffs";
 import type { ExtendedFrequencyResponse } from "./utils";
 
 interface ComplexBiquad {
