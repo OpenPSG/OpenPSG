@@ -30,22 +30,33 @@ export class GenericTemperatureDriver implements Driver {
   private measurementQueue?: Channel<Measurement>;
   private lastTemp?: number;
 
+  private name = "Temp";
+
   static uuid = "0000181a-0000-1000-8000-00805f9b34fb"; // Environmental Sensing
 
   static scanFilters: BluetoothLEScanFilter[] = [
     { services: [GenericTemperatureDriver.uuid] },
   ];
 
-  // No config needed when notifications are guaranteed
-  configSchema: ConfigField[] = [];
+  configSchema: ConfigField[] = [
+    {
+      name: "name",
+      label: "Name",
+      type: "text",
+      defaultValue: "Temp",
+      required: true,
+      maxLength: 16,
+    },
+  ];
 
   constructor(service: BluetoothRemoteGATTService) {
     this.service = service;
     this.measurementQueue = new Channel<Measurement>();
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  async configure(_config: Record<string, ConfigValue>): Promise<void> {
+  async configure(config: Record<string, ConfigValue>): Promise<void> {
+    this.name = String(config.name ?? "Temp");
+
     // Temperature (0x2A6E)
     this.tempChar = await this.service.getCharacteristic(
       "00002a6e-0000-1000-8000-00805f9b34fb",
@@ -91,7 +102,7 @@ export class GenericTemperatureDriver implements Driver {
   signals(recordDuration: number): EDFSignal[] {
     return [
       {
-        label: "Temp",
+        label: `${this.name}`,
         transducerType: "THERM",
         physicalDimension: "degC",
         physicalMin: -50,
