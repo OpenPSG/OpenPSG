@@ -16,7 +16,7 @@
 import { useCallback, useState, useEffect, useRef } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Plus, Circle, Square, Mic } from "lucide-react";
+import { Plus, Circle, Square } from "lucide-react";
 import Plot from "@/components/plot/Plot";
 import {
   AlertDialog,
@@ -33,6 +33,7 @@ import type { Value } from "@/lib/types";
 import { DriverRegistry } from "@/lib/drivers/driver-registry";
 import { EPOCH_DURATION_MS } from "@/lib/constants";
 import SensorConfigDialog from "./SensorConfigDialog";
+import SensorTypeDialog from "./SensorTypeDialog";
 import { EDFWriter } from "@/lib/edf/edfwriter";
 import {
   acquireWakeLock,
@@ -54,6 +55,7 @@ export default function Record() {
   const wakeLockRef = useRef<WakeLockSentinel | undefined>(undefined);
   const valuesRef = useRef<CircularBuffer<Value>[]>([]);
 
+  const [chooseTypeOpen, setChooseTypeOpen] = useState(false);
   const [configureSensorDialogOpen, setConfigureSensorDialogOpen] =
     useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
@@ -147,7 +149,13 @@ export default function Record() {
     [activeSensor, signals],
   );
 
-  const handleAddSensor = async () => {
+  // Open the chooser dialog from the toolbar button
+  const handleAddSensor = () => {
+    setChooseTypeOpen(true);
+  };
+
+  // BLE flow (previously handleAddSensor)
+  const connectBleSensor = async () => {
     try {
       checkWebBluetoothSupport();
       setIsConnecting(true);
@@ -173,7 +181,8 @@ export default function Record() {
     }
   };
 
-  const handleAddSnoreMic = async () => {
+  // Snore mic flow (previously handleAddSnoreMic)
+  const addSnoreMicSensor = async () => {
     try {
       if (sensorsRef.current.some((d) => d instanceof SnoreMicDriver)) {
         setError("Snore mic is already added.");
@@ -282,6 +291,20 @@ export default function Record() {
         </AlertDialogContent>
       </AlertDialog>
 
+      <SensorTypeDialog
+        open={chooseTypeOpen}
+        onOpenChange={setChooseTypeOpen}
+        isConnecting={isConnecting}
+        onSelect={async (type) => {
+          setChooseTypeOpen(false);
+          if (type === "ble") {
+            await connectBleSensor();
+          } else {
+            await addSnoreMicSensor();
+          }
+        }}
+      />
+
       <SensorConfigDialog
         open={configureSensorDialogOpen}
         activeDriver={activeSensor}
@@ -300,16 +323,6 @@ export default function Record() {
             >
               <Plus className="w-4 h-4 mr-2" />
               Add Sensor
-            </Button>
-
-            <Button
-              variant="outline"
-              onClick={handleAddSnoreMic}
-              disabled={isConnecting}
-              aria-label="Add Snore"
-            >
-              <Mic className="w-4 h-4 mr-2" />
-              Add Snore
             </Button>
           </div>
 
