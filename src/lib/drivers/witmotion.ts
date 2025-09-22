@@ -195,22 +195,19 @@ export class WitMotionIMUDriver implements Driver {
     this.mode = config.mode as "movement" | "position" | "raw";
     this.sampleRate = Number(config.sampleRate ?? 10);
 
-    this.writeChar = await this.service.getCharacteristic(
-      "0000ffe9-0000-1000-8000-00805f9a34fb",
-    );
-    this.notifyChar = await this.service.getCharacteristic(
-      "0000ffe4-0000-1000-8000-00805f9a34fb",
-    );
+    await this.bindAndSubscribe(this.service);
 
-    await this.notifyChar.startNotifications();
-    this.notifyChar.addEventListener(
-      "characteristicvaluechanged",
-      this.handleNotification.bind(this),
-    );
-
+    // Apply configuration (rate persisted in device; safe to set again)
     await this.unlock();
     await this.writeRegister(Register.Rate, RateMap[this.sampleRate] ?? 0x06);
     await this.save();
+  }
+
+  async onReconnect(service: BluetoothRemoteGATTService): Promise<void> {
+    this.service = service;
+    await this.bindAndSubscribe(service);
+    // We intentionally do NOT re-send configuration registers here.
+    // Most WT9011 devices persist settings; streaming will resume once notifications are enabled.
   }
 
   async close() {
@@ -219,7 +216,6 @@ export class WitMotionIMUDriver implements Driver {
     } catch (err) {
       console.warn("Failed to stop notifications:", err);
     }
-    this.service.device.gatt?.disconnect();
     this.measurementQueue?.close();
   }
 
@@ -413,6 +409,40 @@ export class WitMotionIMUDriver implements Driver {
     }
   }
 
+  private async bindAndSubscribe(
+    service: BluetoothRemoteGATTService,
+  ): Promise<void> {
+    // Write (0xFFE9) + Notify (0xFFE4)
+    this.writeChar = await service.getCharacteristic(
+      "0000ffe9-0000-1000-8000-00805f9a34fb",
+    );
+    this.notifyChar = await service.getCharacteristic(
+      "0000ffe4-0000-1000-8000-00805f9a34fb",
+    );
+
+    if (!this.writeChar) {
+      throw new Error("WitMotion write characteristic (FFE9) not found");
+    }
+    if (!this.notifyChar) {
+      throw new Error("WitMotion notify characteristic (FFE4) not found");
+    }
+
+    // Ensure we don't double-register across reconnects
+    this.notifyChar.removeEventListener(
+      "characteristicvaluechanged",
+      this.handleNotification as EventListener,
+    );
+
+    await this.notifyChar.startNotifications();
+
+    this.notifyChar.addEventListener(
+      "characteristicvaluechanged",
+      this.handleNotification as EventListener,
+    );
+
+    // No initial reads by design; device streams frames when notifications are enabled.
+  }
+
   private async writeRegister(reg: number, value: number): Promise<void> {
     await this.unlock();
 
@@ -442,12 +472,16 @@ export class WitMotionIMUDriver implements Driver {
     return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
-  private handleNotification(event: Event) {
+  private handleNotification = (event: Event): void => {
     const round = (value: number, decimals: number) =>
       Number(value.toFixed(decimals));
 
     const char = event.target as BluetoothRemoteGATTCharacteristic;
-    const data = new Uint8Array(char.value!.buffer);
+    const dv = char.value;
+    if (!dv) return;
+
+    const data = new Uint8Array(dv.buffer);
+    // Expect 20-byte frame starting with 0x55 0x61 for AGPV selection (Accel+Gyro+Angle)
     if (data.length !== 20 || data[0] !== 0x55 || data[1] !== 0x61) return;
 
     const view = new DataView(data.buffer);
@@ -471,5 +505,5 @@ export class WitMotionIMUDriver implements Driver {
     };
 
     this.measurementQueue?.push(measurement);
-  }
+  };
 }

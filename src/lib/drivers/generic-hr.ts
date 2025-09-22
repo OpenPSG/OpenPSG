@@ -70,15 +70,12 @@ export class GenericHRDriver implements Driver {
       this.hrvWindow = Number(config.hrvWindow);
     }
 
-    this.notifyChar = await this.service.getCharacteristic(
-      "00002a37-0000-1000-8000-00805f9b34fb",
-    );
+    await this.bindAndSubscribe(this.service);
+  }
 
-    await this.notifyChar.startNotifications();
-    this.notifyChar.addEventListener(
-      "characteristicvaluechanged",
-      this.handleNotification.bind(this),
-    );
+  async onReconnect(service: BluetoothRemoteGATTService): Promise<void> {
+    this.service = service;
+    await this.bindAndSubscribe(service);
   }
 
   async close(): Promise<void> {
@@ -87,7 +84,6 @@ export class GenericHRDriver implements Driver {
     } catch (err) {
       console.warn("Failed to stop notifications:", err);
     }
-    this.service.device.gatt?.disconnect();
     this.measurementQueue?.close();
   }
 
@@ -147,7 +143,32 @@ export class GenericHRDriver implements Driver {
     }
   }
 
-  private handleNotification(event: Event): void {
+  private async bindAndSubscribe(
+    service: BluetoothRemoteGATTService,
+  ): Promise<void> {
+    // Heart Rate Measurement (0x2A37)
+    this.notifyChar = await service.getCharacteristic(
+      "00002a37-0000-1000-8000-00805f9b34fb",
+    );
+    if (!this.notifyChar) {
+      throw new Error("Heart Rate Measurement characteristic not found");
+    }
+
+    // Ensure we don't double-register the listener across reconnects
+    this.notifyChar.removeEventListener(
+      "characteristicvaluechanged",
+      this.handleNotification as EventListener,
+    );
+
+    await this.notifyChar.startNotifications();
+
+    this.notifyChar.addEventListener(
+      "characteristicvaluechanged",
+      this.handleNotification as EventListener,
+    );
+  }
+
+  private handleNotification = (event: Event): void => {
     const char = event.target as BluetoothRemoteGATTCharacteristic;
     const dataView = char.value;
     if (!dataView) return;
@@ -201,5 +222,5 @@ export class GenericHRDriver implements Driver {
     };
 
     this.measurementQueue?.push(measurement);
-  }
+  };
 }

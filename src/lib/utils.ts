@@ -71,3 +71,14 @@ export const releaseWakeLock = async (lock: WakeLockSentinel | undefined) => {
     console.warn("Failed to release wake lock:", err);
   }
 };
+
+export const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+export const nextBackoffMs = (
+  attempt: number,
+  { baseMs = 1000, maxMs = 30000 }: { baseMs?: number; maxMs?: number } = {},
+) => {
+  const cap = Math.min(maxMs, baseMs * 2 ** attempt);
+  // Full jitter
+  return Math.floor(Math.random() * cap);
+};

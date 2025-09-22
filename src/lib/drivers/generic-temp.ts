@@ -24,11 +24,14 @@ interface Measurement {
   temperature: number; // degrees Celsius
 }
 
+const STALE_MS = 60_000; // 60 seconds
+
 export class GenericTemperatureDriver implements Driver {
   private service: BluetoothRemoteGATTService;
   private tempChar?: BluetoothRemoteGATTCharacteristic;
   private measurementQueue?: Channel<Measurement>;
   private lastTemp?: number;
+  private lastSampleAt?: number; // ms since epoch of last real sensor sample
 
   private name = "Temp";
 
@@ -56,37 +59,12 @@ export class GenericTemperatureDriver implements Driver {
 
   async configure(config: Record<string, ConfigValue>): Promise<void> {
     this.name = String(config.name ?? "Temp");
+    await this.bindAndSubscribe(this.service);
+  }
 
-    // Temperature (0x2A6E)
-    this.tempChar = await this.service.getCharacteristic(
-      "00002a6e-0000-1000-8000-00805f9b34fb",
-    );
-    if (!this.tempChar) {
-      throw new Error("Temperature characteristic not found");
-    }
-
-    await this.tempChar.startNotifications();
-    this.tempChar.addEventListener(
-      "characteristicvaluechanged",
-      this.handleNotification.bind(this),
-    );
-
-    // Immediately perform a read so we don't have to wait for the first notification
-    try {
-      const dv = await this.tempChar.readValue?.();
-      if (dv instanceof DataView) {
-        const temperature = this.decodeTemperature(dv);
-        this.lastTemp = temperature;
-        this.measurementQueue?.push({
-          timestamp: new Date(),
-          temperature,
-        });
-      } else {
-        console.warn("readValue() not available or returned unexpected type");
-      }
-    } catch (e) {
-      console.warn("Initial read failed (continuing with notifications)", e);
-    }
+  async onReconnect(service: BluetoothRemoteGATTService): Promise<void> {
+    this.service = service;
+    await this.bindAndSubscribe(service);
   }
 
   async close(): Promise<void> {
@@ -95,8 +73,9 @@ export class GenericTemperatureDriver implements Driver {
     } catch {
       /* ignore */
     }
-    this.service.device.gatt?.disconnect();
     this.measurementQueue?.close();
+    this.lastTemp = undefined;
+    this.lastSampleAt = undefined;
   }
 
   signals(recordDuration: number): EDFSignal[] {
@@ -110,7 +89,7 @@ export class GenericTemperatureDriver implements Driver {
         digitalMin: INT16_MIN,
         digitalMax: INT16_MAX,
         prefiltering: "",
-        samplesPerRecord: recordDuration, // 1Hz
+        samplesPerRecord: recordDuration, // 1 Hz
       },
     ];
   }
@@ -133,18 +112,66 @@ export class GenericTemperatureDriver implements Driver {
 
       if (measurement) {
         this.lastTemp = measurement.temperature;
+        this.lastSampleAt = measurement.timestamp.getTime();
         yield [
           { timestamp: measurement.timestamp, value: measurement.temperature },
         ];
-      } else if (this.lastTemp != null) {
-        // Ensure at least one sample per record duration, even if no new data arrived
-        yield [{ timestamp: new Date(), value: this.lastTemp }];
+      } else {
+        // Only emit a keep-alive sample if it's not stale (>60s old)
+        if (
+          this.lastTemp != null &&
+          this.lastSampleAt != null &&
+          Date.now() - this.lastSampleAt <= STALE_MS
+        ) {
+          yield [{ timestamp: new Date(), value: this.lastTemp }];
+        }
+        // Otherwise, suppress output until a fresh sample arrives.
       }
-      // If we have no lastTemp yet and we timed out, just loop again until first sample arrives.
     }
   }
 
-  private handleNotification(event: Event): void {
+  private async bindAndSubscribe(service: BluetoothRemoteGATTService) {
+    // Temperature (0x2A6E)
+    this.tempChar = await service.getCharacteristic(
+      "00002a6e-0000-1000-8000-00805f9b34fb",
+    );
+    if (!this.tempChar) {
+      throw new Error("Temperature characteristic not found");
+    }
+
+    // Ensure we don't double-register the listener
+    this.tempChar.removeEventListener(
+      "characteristicvaluechanged",
+      this.handleNotification as EventListener,
+    );
+
+    await this.tempChar.startNotifications();
+
+    this.tempChar.addEventListener(
+      "characteristicvaluechanged",
+      this.handleNotification as EventListener,
+    );
+
+    // Prime with an immediate read
+    try {
+      const dv = await this.tempChar.readValue?.();
+      if (dv instanceof DataView) {
+        const temperature = this.decodeTemperature(dv);
+        this.lastTemp = temperature;
+        this.lastSampleAt = Date.now();
+        this.measurementQueue?.push({
+          timestamp: new Date(),
+          temperature,
+        });
+      } else {
+        // Some stacks don't support readValue while notifications are active; non-fatal.
+      }
+    } catch {
+      // Non-fatal: notifications will deliver data soon.
+    }
+  }
+
+  private handleNotification = (event: Event): void => {
     const char = event.target as BluetoothRemoteGATTCharacteristic;
     const dv = char.value;
     if (!dv) return;
@@ -152,11 +179,12 @@ export class GenericTemperatureDriver implements Driver {
     const temperature = this.decodeTemperature(dv);
 
     this.lastTemp = temperature;
+    this.lastSampleAt = Date.now();
     this.measurementQueue?.push({
       timestamp: new Date(),
       temperature,
     });
-  }
+  };
 
   // ESS Temperature (0x2A6E): sint16, little-endian, resolution 0.01 °C
   private decodeTemperature(dv: DataView): number {

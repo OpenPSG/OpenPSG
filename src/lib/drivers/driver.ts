@@ -41,7 +41,8 @@ export type ConfigField = {
 
 export interface Driver {
   configSchema?: readonly ConfigField[];
-  configure?(config: Record<string, ConfigValue>): void;
+  configure?(config: Record<string, ConfigValue>): void | Promise<void>;
+  onReconnect?(service: BluetoothRemoteGATTService): void | Promise<void>;
   close(): Promise<void>;
   signals(recordDuration: number): EDFSignal[];
   values(): AsyncIterable<Values>;
